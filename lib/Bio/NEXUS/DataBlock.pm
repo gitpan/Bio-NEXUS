@@ -2,13 +2,13 @@
 # DataBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: DataBlock.pm,v 1.9 2006/08/29 09:52:13 thladish Exp $
+# $Id: DataBlock.pm,v 1.10 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::DataBlock 
+Bio::NEXUS::DataBlock - Represents the deprecated DATA Block in NEXUS file. 
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.9 $
+$Revision: 1.10 $
 
 =head1 METHODS
 

@@ -2,13 +2,13 @@
 # UnknownBlock.pm
 ######################################################
 # Author: Peter Yang, Thomas Hladish
-# $Id: UnknownBlock.pm,v 1.18 2006/09/01 19:24:02 thladish Exp $
+# $Id: UnknownBlock.pm,v 1.20 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::UnknownBlock - simple block object for storing information about a block not recognized by the NEXUS package.
+Bio::NEXUS::UnknownBlock - Represents a simple  object for storing information unrecognized blocks by the Bio::NEXUS module.
 
 =head1 SYNOPSIS
 
@@ -29,7 +29,7 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated. The
 
 =head1 VERSION
 
-$Revision: 1.18 $
+$Revision: 1.20 $
 
 =head1 METHODS
 
@@ -59,7 +59,7 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ($type = lc $class) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
+    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
     my $self = { type => $type, block => $commands, verbose => $verbose };
     bless $self, $class;
     return $self;

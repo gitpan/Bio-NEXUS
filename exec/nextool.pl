@@ -3,7 +3,7 @@
 # nextool.pl
 ######################################################
 # Author: liangc, yangp 
-# $Id: nextool.pl,v 1.39 2006/08/24 22:04:55 arlin Exp $
+# $Id: nextool.pl,v 1.40 2006/09/05 16:50:13 vivek Exp $
 
 # this script provides a set of functions for manipulating NEXUS files
 # eg, select/exclude/rename OTUs, select character columns in OTUs
@@ -20,7 +20,7 @@ my $infile = shift @ARGV;
 unless ($infile) {die "Usage: nextool.pl <infile> [outfile] [command [options]]\n";}
 
 if ($infile eq "-v") {
-    die "nextool.pl \$Revision: 1.39 $\n"; 
+    die "nextool.pl \$Revision: 1.40 $\n"; 
 }
 if ($infile eq "-h" || $infile eq '--help') {
     pod2usage(-exitval => 0, -verbose => 1);
@@ -668,7 +668,11 @@ __END__
 
 =head1 NAME
 
-nextool - NEXUS file manipulation tool
+nextool.pl - Command-line NEXUS file manipulation tool
+
+=head1 DESCRIPTION
+
+Command-line Bio::NEXUS manipulation program
 
 =head1 SYNOPSIS
 
@@ -813,7 +817,7 @@ B<This program> provides several services in the manipulation of NEXUS files (se
 
 =head1 VERSION
 
-$Revision: 1.39 $
+$Revision: 1.40 $
 
 =head1 REQUIRES
 

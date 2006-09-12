@@ -2,13 +2,13 @@
 # Tree.pm
 ######################################################
 # Author:  Weigang Qiu, Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: Tree.pm,v 1.50 2006/09/01 18:34:21 thladish Exp $
+# $Id: Tree.pm,v 1.52 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::Tree - provides a few functions for trees
+Bio::NEXUS::Tree - Provides functions for manipulating trees
 
 =head1 SYNOPSIS
 
@@ -611,7 +611,9 @@ sub equals {
 
 sub reroot {
     my ( $self, $outgroup_name, $dist_back_to_newroot ) = @_;
-    croak 'An outgroup name must be supplied as an argument in order to reroot: ' unless defined $outgroup_name;
+    croak
+        'An outgroup name must be supplied as an argument in order to reroot: '
+        unless defined $outgroup_name;
 
     my $tree = $self->clone();
 
@@ -627,7 +629,8 @@ sub reroot {
     # create & name a new node that will become the new root
     my $newroot = new Bio::NEXUS::Node();
 
-    if ( $dist_back_to_newroot && $dist_back_to_newroot == $outgroup->get_length() )
+    if (   $dist_back_to_newroot
+        && $dist_back_to_newroot == $outgroup->get_length() )
     {
         $newroot = $outgroup->get_parent();
         $outgroup->set_length($dist_back_to_newroot);
@@ -723,7 +726,9 @@ sub _remove_oldroot_if_superfluous {
     my ($oldroot) = @_;
     if ( @{ $oldroot->get_children() } == 1 ) {
         my $oldroot_child = ${ $oldroot->get_children() }[0];
-        if ( defined $oldroot->get_length() || defined $oldroot_child->get_length() ) {
+        if (   defined $oldroot->get_length()
+            || defined $oldroot_child->get_length() )
+        {
             $oldroot_child->set_length(
                 $oldroot->get_length() + $oldroot_child->get_length() );
         }

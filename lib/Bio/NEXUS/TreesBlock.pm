@@ -2,13 +2,13 @@
 # TreesBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Eugene Melamud, Weigang Qiu, Peter Yang, Thomas Hladish
-# $Id: TreesBlock.pm,v 1.53 2006/09/01 19:24:02 thladish Exp $
+# $Id: TreesBlock.pm,v 1.55 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::TreesBlock - parses and reads in the trees block of a NEXUS file
+Bio::NEXUS::TreesBlock - Represents TREES block of a NEXUS file
 
 =head1 SYNOPSIS
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.53 $
+$Revision: 1.55 $
 
 =head1 METHODS
 
@@ -67,10 +67,11 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ($type = lc $class) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
+    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
     my $self = { type => $type, };
     bless $self, $class;
-    $self->_parse_block( $commands, $verbose ) if ((defined $commands) and @$commands);
+    $self->_parse_block( $commands, $verbose )
+        if ( ( defined $commands ) and @$commands );
     return $self;
 }
 
@@ -311,19 +312,22 @@ sub translate {
 
 sub reroot_tree {
     my ( $self, $outgroup, $root_position, $treename ) = @_;
-    croak "ERROR: Need to specify a tree name and outgroup name for rerooting.\n" unless ((defined $treename) and (defined $outgroup));
+    croak
+        "ERROR: Need to specify a tree name and outgroup name for rerooting.\n"
+        unless ( ( defined $treename ) and ( defined $outgroup ) );
     my $tree = $self->get_tree($treename);
     my @rerooted_trees;
     foreach my $tree ( @{ $self->get_trees() } ) {
-       if ($tree->get_name ne $treename) {
-	  push @rerooted_trees, $tree;
-       } else {
-	  push @rerooted_trees, $tree->reroot( $outgroup, $root_position );
-       }
+        if ( $tree->get_name ne $treename ) {
+            push @rerooted_trees, $tree;
+        }
+        else {
+            push @rerooted_trees, $tree->reroot( $outgroup, $root_position );
+        }
     }
-    $self->set_trees(\@rerooted_trees);
+    $self->set_trees( \@rerooted_trees );
     return $self;
- }
+}
 
 =head2 reroot_all_trees
 
@@ -336,13 +340,13 @@ sub reroot_tree {
 =cut
 
 sub reroot_all_trees {
-    my ( $self, $outgroup, $root_position) = @_;
+    my ( $self, $outgroup, $root_position ) = @_;
     return if not defined $self->get_tree;
     my @rerooted_trees;
     foreach my $tree ( @{ $self->get_trees() } ) {
-       push @rerooted_trees,$tree->reroot( $outgroup, $root_position );
+        push @rerooted_trees, $tree->reroot( $outgroup, $root_position );
     }
-    $self->set_trees(\@rerooted_trees);
+    $self->set_trees( \@rerooted_trees );
     return $self;
 }
 

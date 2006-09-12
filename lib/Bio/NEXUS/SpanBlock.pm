@@ -2,13 +2,13 @@
 # SpanBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Thomas Hladish
-# $Id: SpanBlock.pm,v 1.27 2006/09/01 19:24:02 thladish Exp $
+# $Id: SpanBlock.pm,v 1.29 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::SpanBlock 
+Bio::NEXUS::SpanBlock - Represent SPAN block in a NEXUS file (contains meta data).
 
 =head1 SYNOPSIS
 
@@ -60,11 +60,12 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ($type = lc $class) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
+    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
 
     my $self = { type => $type, };
     bless $self, $class;
-    $self->_parse_block( $commands, $verbose ) if ((defined $commands) and @$commands);
+    $self->_parse_block( $commands, $verbose )
+        if ( ( defined $commands ) and @$commands );
     return $self;
 }
 

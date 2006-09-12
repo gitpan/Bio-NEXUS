@@ -1,6 +1,8 @@
+=pod 
+
 =head1 NAME
 
-Bio::NEXUS Installation Instructions.
+Installation - Bio::NEXUS Installation Instructions.
 
 =head1 DESCRIPTION
 

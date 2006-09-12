@@ -2,13 +2,13 @@
 # Block.pm
 #################################################################
 # Author: Chengzhi Liang, Weigang Wiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: Block.pm,v 1.40 2006/08/29 09:24:30 thladish Exp $
+# $Id: Block.pm,v 1.41 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::Block 
+Bio::NEXUS::Block - Provides useful functions for blocks in NEXUS file (parent class).
 
 =head1 SYNOPSIS
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.40 $
+$Revision: 1.41 $
 
 =head1 METHODS
 

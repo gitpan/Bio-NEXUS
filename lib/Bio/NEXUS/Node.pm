@@ -2,13 +2,13 @@
 # Node.pm
 ######################################################
 # Author:  Weigang Qiu, Eugene Melamud, Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: Node.pm,v 1.51 2006/08/31 16:33:13 vivek Exp $
+# $Id: Node.pm,v 1.53 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::Node - provides a few functions for nodes
+Bio::NEXUS::Node - Provides functions for manipulating nodes in trees
 
 =head1 SYNOPSIS
 
@@ -230,7 +230,8 @@ sub set_support_value {
     my ( $self, $bootstrap ) = @_;
     confess
         "Attempt to set bad branch support value: <$bootstrap> is not a valid number: $!"
-        unless _is_number($bootstrap) or (not defined $bootstrap);
+        unless _is_number($bootstrap)
+        or ( not defined $bootstrap );
 
     $self->{'bootstrap'} = $bootstrap;
 }
@@ -753,7 +754,8 @@ sub _parse_support_value {
         "Bad branch support value found in tree string: <$bootstrap> is not a valid number: $!"
         unless _is_number($bootstrap);
 
-    $self->set_support_value( _sci_to_dec($bootstrap) ) if defined _sci_to_dec($bootstrap);
+    $self->set_support_value( _sci_to_dec($bootstrap) )
+        if defined _sci_to_dec($bootstrap);
     return $bootstrap;
 }
 
@@ -1020,7 +1022,8 @@ sub combine {
     $self->set_support_value( $child->get_support_value() );
     $self->set_length( ( $self->get_length() || 0 ) + $child->get_length() );
     $self->set_children();
-    $self->set_children( $child->get_children() ) if @{ $child->get_children } > 0;
+    $self->set_children( $child->get_children() )
+        if @{ $child->get_children } > 0;
 }
 
 =begin comment

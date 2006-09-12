@@ -2,13 +2,13 @@
 # MatrixBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: MatrixBlock.pm,v 1.10 2006/08/29 09:43:37 thladish Exp $
+# $Id: MatrixBlock.pm,v 1.12 2006/09/11 23:12:42 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::MatrixBlock 
+Bio::NEXUS::MatrixBlock - Provides functions for handling blocks that have matrices
 
 =head1 SYNOPSIS
 
@@ -30,7 +30,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.10 $
+$Revision: 1.12 $
 
 =head1 METHODS
 
@@ -141,6 +141,51 @@ sub _parse_format {
     return;
 }
 
+=begin comment
+
+ Title   : _validate_format
+ Usage   : $self->_validate_format($format_hashref); (private)
+ Function: Assigns defaults and sorts through formatting subcommands per the NEXUS standard
+ Returns : hash reference (the validated formatting)
+ Args    : hash reference with format keys (the subcommands) and their values
+
+=end comment 
+
+=cut
+
+sub _validate_format {
+    my ( $self, $format ) = @_;
+    my $block_type = $self->get_type();
+
+    # Currently, only Characters and Unaligned blocks are handled here--other
+    # matrix-type blocks are treated as though their formatting is valid
+    return $format
+        unless ( $block_type eq 'characters' || $block_type eq 'unaligned' );
+
+    if ($format->{'datatype'} =~ /^(?:dna|rna|nucleotide|protein|continuous)$/ )
+    {
+        delete $format->{'respectcase'};
+    }
+    elsif ( $format->{'datatype'} eq 'standard'
+        || !defined $format->{'datatype'} )
+    {
+        $format->{'datatype'} = 'standard'; # 'standard' is the default datatype
+
+        if ( !$format->{'respectcase'} ) {
+            for my $sub_cmd (qw/symbols missing gap matchar/) {
+                $format->{$sub_cmd} = lc $format->{$sub_cmd}
+                    if defined $format->{$sub_cmd};
+            }
+        }
+    }
+    else {
+        carp
+            "WARNING: Unfamiliar datatype encountered in $block_type block: '$format->{'datatype'}' (continuing anyway) ";
+    }
+
+    return $format;
+}
+
 =head2 set_format
 
  Title   : set_format
@@ -153,7 +198,7 @@ sub _parse_format {
 
 sub set_format {
     my ( $self, $format_hashref ) = @_;
-    $self->{'format'} = $format_hashref;
+    $self->{'format'} = $self->_validate_format($format_hashref);
 }
 
 =head2 get_format

@@ -2,13 +2,13 @@
 # TaxUnitSet.pm
 #################################################################
 # Author: Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: TaxUnitSet.pm,v 1.21 2006/08/31 16:33:13 vivek Exp $
+# $Id: TaxUnitSet.pm,v 1.22 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::TaxUnitSet
+Bio::NEXUS::TaxUnitSet - Represents a sets of OTUS (Bio::NEXUS::TaxUnits objects) in a NEXUS file
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.21 $
+$Revision: 1.22 $
 
 =head1 METHODS
 

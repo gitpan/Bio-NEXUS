@@ -1,6 +1,14 @@
-=head1 Bio::NEXUS Tutorial
+=pod
 
-=head2 Introduction
+=head1 NAME
+
+Tutorial - Hands-on tutorial for using Bio::NEXUS module.
+
+=head1 DESCRIPTION
+
+Tutorial to get started using Bio::NEXUS module.
+
+=head2 INTRODUCTION
 
 The NEXUS file format standard of Maddison, et al. (1997) is designed to represent sets of data, including character data (e.g., molecular sequence alignments, morphological character sets), trees, assumptions about models and methods, meta-information such as comments, and so on.  L<Bio::NEXUS> is an object-oriented Perl applications programming interface (API) for the NEXUS file format.  Accordingly, Bio::NEXUS provides methods for managing character data, trees, assumptions, meta-information, and so on, via the NEXUS format.  
 
@@ -989,3 +997,4 @@ L<Bio::Phylo> link
 
 =back
 
+=cut

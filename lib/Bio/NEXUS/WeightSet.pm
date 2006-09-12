@@ -2,13 +2,13 @@
 # WeightSet.pm
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish
-# $Id: WeightSet.pm,v 1.19 2006/08/29 09:52:13 thladish Exp $
+# $Id: WeightSet.pm,v 1.20 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::WeightSet
+Bio::NEXUS::WeightSet - Represents column weights in alignment ( for each character)
 
 =head1 SYNOPSIS
 

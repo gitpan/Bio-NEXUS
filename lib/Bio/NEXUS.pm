@@ -2,14 +2,14 @@
 # NEXUS.pm
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: NEXUS.pm,v 1.86 2006/09/01 18:32:42 thladish Exp $
-# $Revision: 1.86 $
+# $Id: NEXUS.pm,v 1.89 2006/09/11 23:03:42 thladish Exp $
+# $Revision: 1.89 $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-NEXUS - A class representing a NEXUS object, which can be created from and written to a NEXUS file
+Bio::NEXUS - An object-oriented Perl Applications Programming Interface (API) for the NEXUS file format
 
 =head1 SYNOPSIS
 
@@ -19,7 +19,10 @@ NEXUS - A class representing a NEXUS object, which can be created from and writt
 
 =head1 DESCRIPTION
 
-NEXUS is a medium for manipulating NEXUS files: read/write NEXUS file and change file contents, eg, add/remove blocks, select blocks/trees/subtrees/OTUs/characters.
+This is the base class for the Bio::NEXUS package, providing an object-oriented API to 
+the NEXUS file format of I<Maddison, et al.>, 1997.  This module provides methods to 
+add/remove blocks, select blocks/trees/subtrees/OTUs/characters and so on.  For a 
+tutorial illustrating how to use Bio::NEXUS, see L<doc/Tutorial.pod>.
 
 =head1 FEEDBACK
 
@@ -30,8 +33,8 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated.
  Chengzhi Liang (liangc@umbi.umd.edu)
  Weigang Qiu (weigang@genectr.hunter.cuny.edu)
  Peter Yang (pyang@rice.edu)
- Brendan
  Thomas Hladish (tjhladish at yahoo)
+ Arlin Stoltzfus (arlin.stoltzfus@nist.gov)
 
 =head1 METHODS
 
@@ -64,7 +67,7 @@ use Bio::NEXUS::DistancesBlock;
 #  version info from $VERSION variable.
 
 use vars qw($VERSION);
-our $VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.66' : sprintf " %d." . "%02d" x $#r, @r; };
+our $VERSION = do { my @r = ( q$Name: CPAN_release_0_67 $ =~ /\d+/g ); ( $#r < 0 ) ? '0.66' : sprintf " %d." . "%02d" x $#r, @r; };
 
 =head2 new
 
@@ -152,7 +155,7 @@ sub read {
         # to be used for a different meaning, and we need to support double
         # quotes in output from programs like clustal.  We will not, however,
         # output double quotes.)
-        if (  ( $text_char eq q{'} || $text_char eq q{"} )
+        if (   ( $text_char eq q{'} || $text_char eq q{"} )
             && $quote_level == 0
             && $comment_level == 0
             && $found_nexus_token )
@@ -289,7 +292,7 @@ sub read {
             "    Since a taxa block doesn't exist in your file, one will be created for you.\n"
             )
             if $verbose;
-	    $self->set_taxablock;
+        $self->set_taxablock;
     }
 
     my $counter = scalar @{ $self->get_blocks() };
@@ -731,7 +734,7 @@ sub rename_otus {
     my ( $self, $translation ) = @_;
     my $nexus = $self->clone();
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /characters|trees|taxa|sets|span|history/i )
+        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
         {
             $block->rename_otus($translation);
         }
@@ -792,7 +795,8 @@ sub select_otus {
     my $nexus = $self->clone();
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ m/taxa|characters|trees|sets/i ) {
+        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        {
             $block->select_otus($otunames);
         }
     }
@@ -861,7 +865,8 @@ sub select_subtree {
     $nexus->get_block('taxa')->select_otus($OTUnames);
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /characters|taxa|sets|span|history/i ) {
+        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        {
             $block->select_otus($OTUnames);
         }
     }
@@ -890,7 +895,8 @@ sub exclude_subtree {
     my $OTUnames = $treesblock->get_taxlabels();
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /characters|taxa|sets|span|history/i ) {
+        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        {
             $block->select_otus($OTUnames);
         }
     }
@@ -979,10 +985,13 @@ sub exclude_chars {
 sub reroot {
     my ( $self, $outgroup, $root_position, $treename ) = @_;
     my $nexus = $self->clone();
-    if (defined $treename) {
-        $nexus->get_block('trees')->reroot_tree( $outgroup, $root_position, $treename );
-    }else {
-        $nexus->get_block('trees')->reroot_all_trees( $outgroup, $root_position);
+    if ( defined $treename ) {
+        $nexus->get_block('trees')
+            ->reroot_tree( $outgroup, $root_position, $treename );
+    }
+    else {
+        $nexus->get_block('trees')
+            ->reroot_all_trees( $outgroup, $root_position );
     }
     return $nexus;
 }
@@ -1094,25 +1103,29 @@ sub write {
 =cut
 
 sub set_taxablock {
-   my $self = shift;
+    my $self = shift;
     if ( not defined $self->get_block('taxa') ) {
-       for my $block (@{ $self->get_blocks }) {
-	  if ( $block->get_type() =~ /characters|trees/i ) {
-	     my $taxlabels  = $block->get_taxlabels();
-	     if ((not defined $taxlabels) or ( not @$taxlabels) ) {
-		if ($block->get_type =~ /trees/) { 
-		   $block->set_taxlabels( $block->get_tree()->get_node_names() );
-		} else {
-		   $block->set_taxlabels( $block->get_otuset->get_otu_names() );
-		}
-		$taxlabels  = $block->get_taxlabels();
-	     }
-	     my $taxa_block = new Bio::NEXUS::TaxaBlock('taxa');
-	     $taxa_block->set_taxlabels($taxlabels);
-	     $self->add_block($taxa_block);
-	     return;
-	  }
-       }
+        for my $block ( @{ $self->get_blocks } ) {
+            my $block_type = lc $block->get_type();
+            if ( $block_type eq 'characters' || $block_type eq 'trees' ) {
+                my $taxlabels = $block->get_taxlabels();
+                if ( ( not defined $taxlabels ) or ( not @$taxlabels ) ) {
+                    if ( $block_type eq 'trees' ) {
+                        $block->set_taxlabels(
+                            $block->get_tree()->get_node_names() );
+                    }
+                    else {
+                        $block->set_taxlabels(
+                            $block->get_otuset->get_otu_names() );
+                    }
+                    $taxlabels = $block->get_taxlabels();
+                }
+                my $taxa_block = new Bio::NEXUS::TaxaBlock('taxa');
+                $taxa_block->set_taxlabels($taxlabels);
+                $self->add_block($taxa_block);
+                return;
+            }
+        }
     }
 }
 

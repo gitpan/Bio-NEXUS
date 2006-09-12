@@ -2,13 +2,13 @@
 # TaxUnit.pm
 ########################################################################
 # Author: Chengzhi Liang, Thomas Hladish
-# $Id: TaxUnit.pm,v 1.16 2006/08/29 09:50:38 thladish Exp $
+# $Id: TaxUnit.pm,v 1.17 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::TaxUnit
+Bio::NEXUS::TaxUnit - Represents a taxon unit in a NEXUS file
 
 =head1 SYNOPSIS
 
@@ -31,7 +31,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.16 $
+$Revision: 1.17 $
 
 =head1 METHODS
 

@@ -1,20 +1,20 @@
 #################################################################
-# CodonBlock.pm
+# CodonsBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: CodonsBlock.pm,v 1.8 2006/08/26 05:54:34 vivek Exp $
+# $Id: CodonsBlock.pm,v 1.10 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::CodonBlock 
+Bio::NEXUS::CodonsBlock - Represents CODONS block in NEXUS file
 
 =head1 SYNOPSIS
 
 =head1 DESCRIPTION
 
-Placeholding module for the Codons Block class.
+Placeholding module for the CODONS block class.
 
 =head1 COMMENTS
 
@@ -28,13 +28,13 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.8 $
+$Revision: 1.10 $
 
 =head1 METHODS
 
 =cut
 
-package Bio::NEXUS::CodonBlock;
+package Bio::NEXUS::CodonsBlock;
 
 use strict;
 use Data::Dumper;
@@ -45,6 +45,23 @@ use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
 
 use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+
+=head2 new
+
+ Title   : new
+ Usage   : block_object = new Bio::NEXUS::CodonsBlock();
+ Function: Creates a new Bio::NEXUS::CodonsBlock object 
+ Returns : Bio::NEXUS::CodonsBlock object
+ Args    : 
+
+=cut
+
+sub new {
+    my ($class) = @_;
+    my $self = {};
+    bless $self, $class;
+    return $self;
+}
 
 sub AUTOLOAD {
     our $AUTOLOAD;

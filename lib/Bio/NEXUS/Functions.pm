@@ -2,13 +2,13 @@
 # Functions.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: Functions.pm,v 1.8 2006/08/29 09:40:53 thladish Exp $
+# $Id: Functions.pm,v 1.9 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::Functions 
+Bio::NEXUS::Functions - Provides private utiliy functions for the module 
 
 =head1 SYNOPSIS
 
@@ -28,7 +28,7 @@ All feedback (bugs, feature enhancements, etc.) is greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.8 $
+$Revision: 1.9 $
 
 =head1 METHODS
 

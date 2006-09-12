@@ -2,13 +2,13 @@
 # DistancesBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: DistancesBlock.pm,v 1.12 2006/09/01 19:24:02 thladish Exp $
+# $Id: DistancesBlock.pm,v 1.14 2006/09/11 23:15:35 thladish Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::DistancesBlock 
+Bio::NEXUS::DistancesBlock - Represents DISTANCES block in NEXUS file
 
 =head1 SYNOPSIS
 
@@ -29,7 +29,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.12 $
+$Revision: 1.14 $
 
 =head1 METHODS
 
@@ -60,11 +60,12 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose, $taxa ) = @_;
-    unless ($type) { ($type = lc $class) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
+    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
     my $self = { type => $type };
     bless $self, $class;
     $self->set_taxlabels($taxa);
-    $self->_parse_block( $commands, $verbose ) if ((defined $commands) and @$commands);
+    $self->_parse_block( $commands, $verbose )
+        if ( ( defined $commands ) and @$commands );
     return $self;
 }
 

@@ -2,13 +2,13 @@
 # CharactersBlock.pm
 #######################################################################
 # Author: Chengzhi Liang, Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: CharactersBlock.pm,v 1.63 2006/09/01 19:24:02 thladish Exp $
+# $Id: CharactersBlock.pm,v 1.65 2006/09/11 23:09:28 thladish Exp $
 
 #################### START POD DOCUMENTATION ##########################
 
 =head1 NAME
 
-Bio::NEXUS::CharactersBlock - represents a Characters Block (Data or Characters) of a NEXUS file
+Bio::NEXUS::CharactersBlock - Represents a CHARACTERS Block (Data or Characters) of a NEXUS file
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ All feedbacks (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.63 $
+$Revision: 1.65 $
 
 =head1 METHODS
 
@@ -64,12 +64,13 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose, $taxa ) = @_;
-    unless ($type) { ($type = lc $class) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
+    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
     my $self = { type => $type };
     bless $self, $class;
     $self->set_taxlabels($taxa);
     $self->{'otuset'} = new Bio::NEXUS::TaxUnitSet();
-    $self->_parse_block( $commands, $verbose ) if ((defined $commands) and @$commands);
+    $self->_parse_block( $commands, $verbose )
+        if ( ( defined $commands ) and @$commands );
 
     return $self;
 }
@@ -87,7 +88,7 @@ sub _post_processing {
     # The 'ntax' subcommand is not required unless the 'newtaxa' subcommand has
     # been used
     my $dimensions = $self->get_dimensions();
-    if (!$dimensions->{'newtaxa'}) {
+    if ( !$dimensions->{'newtaxa'} ) {
         delete $dimensions->{'ntax'};
         $self->set_dimensions($dimensions);
     }
@@ -395,13 +396,17 @@ sub _parse_matrix {
     my $nchar     = $self->get_nchar();
     my @taxlabels = @{ $self->get_taxlabels() };
 
-    my $expect_labels     = !$self->get_format('nolabels');
-    my $expect_interleave = $self->get_format('interleave');
-    my $expect_tokens     = $self->get_format('tokens')
-        || ( lc $self->get_format('datatype') eq 'continuous' );
+    my %format = %{ $self->get_format() };
 
-    my $missing_symbol = $self->get_format('missing') || q{};
-    my $gap_symbol     = $self->get_format('gap')     || q{};
+    my $expect_labels     = !$format{'nolabels'};
+    my $expect_interleave = $format{'interleave'};
+    my $expect_tokens     = $format{'tokens'}
+        || ( lc $format{'datatype'} eq 'continuous' );
+
+    my $missing_symbol = $format{'missing'} || q{};
+    my $gap_symbol     = $format{'gap'}     || q{};
+
+    if ( $format{'datatype'} =~ /^/ ) { }
 
     # '+' and '-' are not included as punctuation because they are allowed as
     # state symbols in a matrix

@@ -1,35 +1,35 @@
 README file for the NEXPL library with accompanying tools.
-$Id: README,v 1.10 2006/08/24 19:40:06 arlin Exp $
+$Id: README,v 1.12 2006/09/06 10:57:23 vivek Exp $
 
 ABOUT
 
-The NEXPL package contains the Bio::NEXUS library, providing an
-object-oriented, Perl-based applications programming interface (API) to
-the NEXUS file format of Maddison, et al., 1997 (Syst. Biol.
-46:590-621).  NEXUS is a powerful and extensible format designed for use
-in evolutionary analysis, including the analysis of molecular sequence
-data as well as classical morphological and life-history data. It is the
-input or output format for software such as PAUP*, MacClade, Mesquite,
-SIMMAP, MrBayes, Nexplorer, and so on.  This package also contains the
-demonstration applications nexplot.pl (plot character data with a tree)
-and nextool.pl (allowing programmatic editing, e.g., selecting
-particular clades or subsets of data).
+The Bio::NEXUS package provides an object-oriented, Perl-based
+applications programming interface (API) to the NEXUS file format of
+Maddison, et al., 1997 (Syst. Biol. 46:590-621).  NEXUS is a powerful
+and extensible format designed for use in evolutionary analysis,
+including the analysis of molecular sequence data as well as classical
+morphological and life-history data. NEXUS is the input or output format
+for software such as PAUP*, MacClade, Mesquite, SIMMAP, MrBayes,
+Nexplorer, and so on.  This package also contains the demonstration
+applications nexplot.pl (plot character data with a tree) and nextool.pl
+(allowing programmatic editing, e.g., selecting particular clades or
+subsets of data).  
 
 LICENSE & ACKNOWLEDGEMENTS
 
-The NEXPL library of Perl software (copyright 2004 Liang, Qiu and Yang)
-is distributed under an open source license (see LICENSE). If you use
-this software, please acknowledge:
+The Bio::NEXUS library of Perl software (copyright 2004 Liang, Qiu and
+Yang) is distributed under an open source license (see LICENSE). If you
+use this software, please acknowledge:
 
 Bio::NEXUS.  An Object-oriented NEXUS API in Perl.  T.J. Hladish, C.L.
-Liang, W.-G. Qiu, P. Yang, V. Gopalan and A. Stoltzfus. Available at
-http://www.molevol.org/camel/software.
+Liang, W.-G. Qiu, P. Yang, V. Gopalan and A. Stoltzfus. Available from 
+http://www.cpan.org.
 
 INSTALLATION AND TESTING
 
-This software has been tested under Linux as well as MaxOS X 10.2 and
-higher, and even a few Windows installations. The package installs using
-the standard procedure, and runs several hundred tests:
+This software has been tested under Linux as well as Mac OS X 10.2 and higher, 
+and even a few Windows installations. The package installs using the standard 
+procedure, and runs several hundred tests:
 
 perl Makefile.PL
 make
@@ -40,9 +40,10 @@ For more information, or to customize, see doc/Installation.pod.
 
 DOCUMENTATION
 
-All of the modules are documented internally with POD, and the doc directory has 
-Tutorial, Installation, User Manual documents.  You can read these online at CPAN, 
-or access your local copies with a command like these: 
+All of the modules are documented internally with POD, and the doc
+directory has Tutorial, Installation, User Manual documents.  You can
+read these online at CPAN, or access your local copies with a command
+like these:
 
 perldoc NEXUS.pm  # give path to file
 perldoc Bio::NEXUS  # installed module

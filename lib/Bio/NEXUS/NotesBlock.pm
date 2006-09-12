@@ -2,13 +2,13 @@
 # NotesBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: NotesBlock.pm,v 1.8 2006/08/26 05:54:34 vivek Exp $
+# $Id: NotesBlock.pm,v 1.9 2006/09/05 16:48:17 vivek Exp $
 
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
 
-Bio::NEXUS::NotesBlock 
+Bio::NEXUS::NotesBlock - Represents a NOTES block in a NEXUS file.
 
 =head1 SYNOPSIS
 
@@ -28,7 +28,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.8 $
+$Revision: 1.9 $
 
 =head1 METHODS
 
