@@ -2,7 +2,7 @@
 # Block.pm
 #################################################################
 # Author: Chengzhi Liang, Weigang Wiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: Block.pm,v 1.41 2006/09/05 16:48:17 vivek Exp $
+# $Id: Block.pm,v 1.49 2007/09/24 04:52:11 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.41 $
+$Revision: 1.49 $
 
 =head1 METHODS
 
@@ -44,10 +44,14 @@ package Bio::NEXUS::Block;
 
 use strict;
 use Bio::NEXUS::Functions;
-use Data::Dumper;
-use Carp;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions 'throw';
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
+use vars qw($VERSION $AUTOLOAD);
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 clone
 
@@ -76,10 +80,7 @@ sub clone {
 
 =cut
 
-sub get_type {
-    my $self = shift;
-    return $self->{'type'};
-}
+sub get_type { shift->{'type'} }
 
 =head2 set_ntax
 
@@ -112,12 +113,10 @@ sub set_ntax {
 sub _parse_block {
     my ( $self, $commands, $verbose ) = @_;
     my $type = $self->get_type();
-    print("    Analyzing $type block now.\n") if $verbose;
-CMD:
-    for my $command (@$commands) {
-
+    $logger->info("Analyzing $type block now.");
+	CMD: for my $command (@$commands) {
         # some of these "commands" are actually command-level comments
-        if ( $command =~ /^\[  .*  \]$/x ) {
+        if ( $command =~ /^\[.*\]$/s ) {
             $self->add_comment($command);
             next CMD;
         }
@@ -131,7 +130,7 @@ CMD:
     }
 
     $self->_post_processing();
-    print("    Analysis of $type block complete.\n") if $verbose;
+    $logger->info("Analysis of $type block complete.");
     return;
 }
 
@@ -288,10 +287,7 @@ sub set_title {
 
 =cut
 
-sub get_title {
-    my ($self) = @_;
-    return $self->{'title'};
-}
+sub get_title { shift->{'title'} }
 
 =head2 set_link
 
@@ -358,7 +354,7 @@ sub get_link {
 
 =cut
 
-# Used by TaxaBlock and all MatrixBlock subclasses
+# Used by TaxaBlock and all Matrix subclasses
 
 sub _parse_taxlabels {
     my ( $self, $buffer, $ntax ) = @_;
@@ -366,8 +362,7 @@ sub _parse_taxlabels {
 
     my $counter = scalar @taxlabels;
     if ( $ntax && $counter != $ntax ) {
-        croak
-            "ERROR: Number of taxa specified does not equal number of taxa listed:\n"
+    	throw 'BadArgs' => "Number of taxa specified does not equal number of taxa listed:\n"
             . "\tdimensions = $ntax, whereas actual number = $counter.\n";
     }
     $self->set_taxlabels( \@taxlabels );
@@ -384,7 +379,7 @@ sub _parse_taxlabels {
 
 =cut
 
-# Used by TaxaBlock and all MatrixBlock subclasses
+# Used by TaxaBlock and all Matrix subclasses
 
 sub set_taxlabels {
     my ( $self, $taxlabels ) = @_;
@@ -402,7 +397,7 @@ sub set_taxlabels {
 
 =cut
 
-# Used by TaxaBlock and all MatrixBlock subclasses
+# Used by TaxaBlock and all Matrix subclasses
 
 sub add_taxlabel {
     my ( $self, $label ) = @_;
@@ -419,12 +414,9 @@ sub add_taxlabel {
 
 =cut
 
-# Used by TaxaBlock and all MatrixBlock subclasses
+# Used by TaxaBlock and all Matrix subclasses
 
-sub get_taxlabels {
-    my ($self) = @_;
-    return $self->{'taxlabels'} || [];
-}
+sub get_taxlabels { shift->{'taxlabels'} || [] }
 
 =head2 set_otus
 
@@ -452,10 +444,7 @@ sub set_otus {
 
 =cut
 
-sub get_otus {
-    my ($self) = @_;
-    return $self->{'otuset'}->get_otus();
-}
+sub get_otus { shift->{'otuset'}->get_otus() }
 
 =head2 set_otuset
 
@@ -483,10 +472,7 @@ sub set_otuset {
 
 =cut
 
-sub get_otuset {
-    my ($self) = @_;
-    return $self->{'otuset'};
-}
+sub get_otuset { shift->{'otuset'} }
 
 =head2 select_otus
 
@@ -531,6 +517,21 @@ sub rename_otus {
     }
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	$logger->warn("method not fully implemented");
+}
+
 =head2 set_comments
 
  Title   : set_comments
@@ -557,13 +558,7 @@ sub set_comments {
 
 =cut
 
-sub get_comments {
-    my ($self) = @_;
-    if ( $self->{'comments'} ) {
-        return $self->{'comments'};
-    }
-    return [];
-}
+sub get_comments { shift->{'comments'} || [] }
 
 =head2 add_comment
 
@@ -636,6 +631,30 @@ sub _write_comments {
 
 =begin comment
 
+ Title   : _load_module
+ Usage   : $block->_load_module('Some::Class');
+ Function: tries to load a class 
+ Returns : class on success, throws ExtensionError on failure
+ Args    : a class name
+
+=end comment
+
+=cut
+
+sub _load_module {
+	my ( $self, $class ) = @_;
+	my $path = $class;
+	$path =~ s|::|/|g;
+	$path .= '.pm';
+	eval { require $path };
+	if ( $@ ) {
+		throw 'ExtensionError' => "Can't load $class: $@";
+	}
+	return $class;
+}
+
+=begin comment
+
  Name    : _write
  Usage   : $block->_write($filehandle, $verbose);
  Function: Writes NEXUS block commands from stored data
@@ -655,7 +674,8 @@ sub _write {
     $self->_write_comments($fh);
 
     if ( $self->get_title ) {
-        print $fh "\tTITLE ", $self->get_title, ";\n";
+    # added _nexus_formatted to protect name with embedded symbols
+        print $fh "\tTITLE ", _nexus_formatted($self->get_title), ";\n";
     }
     if ( $self->get_link ) {
         for my $key ( keys %{ $self->get_link } ) {
@@ -665,9 +685,8 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::Block::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -680,13 +699,12 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called";
     }
-    return;
 }
 
 1;

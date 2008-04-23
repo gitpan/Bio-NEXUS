@@ -2,7 +2,7 @@
 # TaxUnitSet.pm
 #################################################################
 # Author: Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: TaxUnitSet.pm,v 1.22 2006/09/05 16:48:17 vivek Exp $
+# $Id: TaxUnitSet.pm,v 1.30 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -32,7 +32,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.22 $
+$Revision: 1.30 $
 
 =head1 METHODS
 
@@ -43,10 +43,14 @@ package Bio::NEXUS::TaxUnitSet;
 use strict;
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::TaxUnit;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
+use Bio::NEXUS::Util::Exceptions 'throw';
+use Bio::NEXUS::Util::Logger;
+use vars qw($VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new;
 
 =head2 new
 
@@ -137,15 +141,18 @@ sub get_otus {
 
  Title   : get_otu
  Usage   : $set->get_otu(name);
- Function: Returns array of OTUs
- Returns : an OTU
- Args    : none
+ Function: Returns an OTU with a specified name 
+ Returns : an OTU (Bio::NEXUS::TaxUnit)
+ Args    : OTU name as scalar string
 
 =cut
 
 sub get_otu {
     my ( $self, $name ) = @_;
-    return $self->get_otus()->get_otu($name);
+    for my $otu ( @{ $self->get_otus() } ) {
+        return $otu if ( lc($name) eq lc($otu->get_name()) );
+    }
+    return undef;
 }
 
 =head2 get_otu_names
@@ -291,7 +298,7 @@ sub select_chars {
         my @newseq;
         for my $i ( @{$columns} ) {
             if ( $i >= scalar @seq ) {
-                croak "invalid column number: " . ( $i + 1 ) . "\n";
+            	throw 'BadArgs' => "invalid column number: " . ( $i + 1 );
             }
             push @newseq, $seq[$i];
         }
@@ -416,7 +423,9 @@ sub get_ntax {
     if ( ref $otus ) {
         return scalar @{ $self->get_otus() };
     }
-    else { carp "No otus found\n"; }
+    else { 
+    	$logger->warn("No otus found\n") 
+    }
 }
 
 =head2 get_nchar
@@ -503,15 +512,14 @@ sub equals {
 
         # check names
         if ( $otus1[$i]->get_name() ne $otus2[$i]->get_name() ) {
-            carp "OTU names not equal: "
-                . $otus1[$i]->get_name() . " ne "
-                . $otus2[$i]->get_name() . "\n";
+				#carp "OTU names not equal: " . $otus1[$i]->get_name() . " ne " . $otus2[$i]->get_name() . "\n";
             return 0;
         }
 
         # check seq's
         my @seqs1 = @{ $otus1[$i]->get_seq() };
         my @seqs2 = @{ $otus2[$i]->get_seq() };
+
         if ( @seqs1 != @seqs2 ) { return 0; }
         for ( my $j = 0; $j < @seqs1; $j++ ) {
 
@@ -527,8 +535,8 @@ sub equals {
             }
 
             # entry is a character datum
-            elsif ( $seqs1[$j] ne $seqs1[$j] ) {
-                carp "Character values not equal: $seqs1[$j] != $seqs1[$j]\n";
+            elsif ( $seqs1[$j] ne $seqs2[$j] ) {
+				#carp "Character values not equal: $seqs1[$j] != $seqs2[$j]\n";
                 return 0;
             }
         }
@@ -538,9 +546,8 @@ sub equals {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::TaxUnitSet::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -554,11 +561,11 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        throw 'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called";
     }
     return;
 }

@@ -2,7 +2,7 @@
 # UnalignedBlock.pm
 #######################################################################
 # Author: Thomas Hladish
-# $Id: UnalignedBlock.pm,v 1.17 2006/09/11 23:15:35 thladish Exp $
+# $Id: UnalignedBlock.pm,v 1.24 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##########################
 
@@ -30,7 +30,7 @@ All feedback (bugs, feature enhancements, etc.) is greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.17 $
+$Revision: 1.24 $
 
 =head1 METHODS
 
@@ -39,16 +39,16 @@ $Revision: 1.17 $
 package Bio::NEXUS::UnalignedBlock;
 
 use strict;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp;# XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::TaxUnitSet;
-use Bio::NEXUS::MatrixBlock;
-
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
-@ISA = qw(Bio::NEXUS::MatrixBlock);
+use Bio::NEXUS::Matrix;
+use Bio::NEXUS::Util::Exceptions;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
+@ISA = qw(Bio::NEXUS::Matrix);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -129,12 +129,16 @@ sub _parse_matrix {
     # corresponding to the name and sequence found in each row of the matrix
     for my $row ( split /\n|\r/, $matrix ) {
         if ( $row =~ /^\s*$/ ) { next; }
-
+		
         #for quoted taxon name
         if ( $row =~ /^\s*[\"|\']([^\"\']+)[\"|\']\s*([^\[]*)(\[.*\]\s*)*/ ) {
             ( $name, $seq ) = ( $1, $2 );
             $name =~ s/\s+/_/g;
-            if ( !$self->find_taxon($name) ) { croak "Undefined Taxon: $name"; }
+            if ( !$self->find_taxon($name) ) { 
+            	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+            		'error' => "Undefined Taxon: $name"
+            	); 
+            }
         }
         else {
 
@@ -143,12 +147,17 @@ sub _parse_matrix {
             if ( $self->find_taxon($1) ) {
                 $name = $1;
                 $seq  = $3;
+                #print Dumper $seq;
             }
             else {
                 print "taxon name $1 not found\n" if $verbose;
                 $seq = $1 . $2 . $3;
             }
         }
+        #print "> row: $row\n";
+        #print "> name: $name\n";
+        #print "> seq: $seq\n";
+        
         my $newtaxon = 1;
         for my $taxon (@taxa) {
             if ( $taxon->{'name'} eq $name ) {
@@ -160,9 +169,10 @@ sub _parse_matrix {
             push @taxa, { name => $name, seq => $seq };
         }
     }
-
+	#print '> @taxa: ';
     # split each character
     my @otus;
+    #print Dumper \@taxa;
     for my $taxon (@taxa) {
         $seq = $taxon->{'seq'};
         $seq =~ s/^\s*(.*\S)\s*$/$1/;
@@ -187,7 +197,10 @@ sub _parse_matrix {
 
         push @otus, Bio::NEXUS::TaxUnit->new( $taxon->{'name'}, \@seq );
     }
-
+    
+    my $otuset = $self->get_otuset();
+    $otuset->set_otus( \@otus );
+    $self->set_taxlabels( $otuset->get_otu_names() );
     return \@otus;
 }
 
@@ -235,10 +248,7 @@ sub set_format {
 
 =cut
 
-sub get_format {
-    my ($self) = @_;
-    return $self->{'format'} || {};
-}
+sub get_format { shift->{'format'} || {} }
 
 =head2 set_otuset
 
@@ -314,6 +324,43 @@ sub get_ntax {
 sub rename_otus {
     my ( $self, $translation ) = @_;
     $self->get_otuset()->rename_otus($translation);
+}
+
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::UnalignedBlock::add_otu_clone() method not fully implemented\n";
+	
+	if ($self->find_taxon($copy_otu_name)) {
+		print "Error: an OTU with that name [$copy_otu_name] already exists.\n";
+	}
+	else {
+		$self->add_taxlabel($copy_otu_name);
+	}
+	
+	my @otu_set = ();
+	if (defined $self->{'otuset'}->{'otus'}) {
+	    @otu_set = @{ $self->{'otuset'}->{'otus'} };
+	}
+	foreach my $otu (@otu_set) {
+		if (defined $otu) {
+			if ($otu->get_name() eq $original_otu_name) {
+				my $otu_clone = $otu->clone();
+				$otu_clone->set_name($copy_otu_name);
+				$self->{'otuset'}->add_otu($otu_clone);
+			}
+		}
+	}
+	
 }
 
 =head2 equals
@@ -422,9 +469,8 @@ sub _write_matrix {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::UnalignedBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -434,13 +480,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn( "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead" );
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

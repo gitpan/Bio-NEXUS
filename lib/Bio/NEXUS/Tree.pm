@@ -2,7 +2,7 @@
 # Tree.pm
 ######################################################
 # Author:  Weigang Qiu, Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: Tree.pm,v 1.52 2006/09/11 23:15:35 thladish Exp $
+# $Id: Tree.pm,v 1.62 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -39,10 +39,14 @@ package Bio::NEXUS::Tree;
 use strict;
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Node;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp;
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw($VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -252,6 +256,51 @@ sub determine_cladogram {
     }
 }
 
+=head2 set_output_format 
+
+ Title   : set_output_format 
+ Usage   : $tree->set_output_format('STD');  
+ Function: Sets the output format for the Tree, (options : STD or NHX)
+ Returns : none
+ Args    : string: 'STD' or 'NHX'
+
+=cut
+
+sub set_output_format {
+    my ( $self, $format ) = @_;
+    $self->{'_out_format'} = $format;
+}
+
+=head2 get_output_format 
+
+ Title   : get_output_format 
+ Usage   : $output_format = $tree->get_output_format();  
+ Function: Returns the output format for the Tree, (options : STD or NHX)
+ Returns : string: 'STD' or 'NHX'
+ Args    : none
+
+=cut
+
+sub get_output_format {
+    my ($self) = @_;
+    if ( defined $self->{_out_format} ) {
+        return $self->{_out_format};
+    }
+    else {
+        my $format = 'STD';
+        my $nodes  = $self->get_nodes();
+        my @otus;
+        for my $node ( @{$nodes} ) {
+            if ( $node->{is_nhx} ) {
+                $format = 'NHX';
+                last;
+            }
+        }
+        $self->{_out_format} = $format;
+    }
+    return $self->{_out_format};
+}
+
 =head2 is_cladogram
 
  Title   : is_cladogram
@@ -281,7 +330,7 @@ sub as_string {
     my $self = shift;
     my $root = $self->get_rootnode();
     my $string;
-    $root->to_string( \$string, 0 );
+    $root->to_string( \$string, 0, $self->get_output_format );
     $string =~ s/\,$/\;/;
     return $string;
 }
@@ -300,7 +349,7 @@ sub as_string_inodes_nameless {
     my $self = shift;
     my $root = $self->get_rootnode();
     my $string;
-    $root->to_string( \$string, 1 );
+    $root->to_string( \$string, 1, $self->get_output_format );
     $string =~ s/\,$/\;/;
     return $string;
 }
@@ -364,7 +413,7 @@ sub get_distances {
     my $root  = $self->get_rootnode();
     my %distances;
     for my $node ( @{$nodes} ) {
-        $distances{ $node->get_name() } = $root->distance($node);
+        $distances{ $node->get_name() } = $root->get_distance($node);
     }
     return \%distances;
 }
@@ -400,7 +449,7 @@ sub get_support_values {
     my $nodes = $self->get_nodes();
     my %bootstraps;
     for my $node ( @{$nodes} ) {
-        my $boot = $node->get_support_values();
+        my $boot = $node->get_support_value();
         $bootstraps{ $node->get_name() } = $boot if $boot;
     }
     return \%bootstraps;
@@ -435,20 +484,20 @@ sub _set_xcoord {
                     $node->_set_xcoord( $maxdepth * $unit );
                 }
                 else {
-                    $node->_set_xcoord( $node->depth() * $unit );
+                    $node->_set_xcoord( $node->get_depth() * $unit );
                 }
             }
         }
         elsif ( $cladogramMethod eq "normal" ) {
             my %depth = %{ $self->get_depth() };
             for my $node (@nodes) {
-                $node->_set_xcoord( $node->depth() * $unit );
+                $node->_set_xcoord( $node->get_depth() * $unit );
             }
         }
     }
     else {
         for my $node (@nodes) {
-            $node->_set_xcoord( $root->distance($node) );
+            $node->_set_xcoord( $root->get_distance($node) );
         }
     }
 }
@@ -503,7 +552,7 @@ sub get_depth {
     my $nodes = $self->get_nodes();
     my %depth;
     for my $node ( @{$nodes} ) {
-        my $d = $node->depth();
+        my $d = $node->get_depth();
         $depth{ $node->get_name() } = $d if ( $d || ( $d == 0 ) );
     }
     return \%depth;
@@ -595,8 +644,16 @@ sub prune {
 
 sub equals {
     my ( $self, $tree ) = @_;
+
     if ( $self->get_name() ne $tree->get_name() ) { return 0; }
     return $self->get_rootnode()->equals( $tree->get_rootnode() );
+}
+
+sub _equals_test {
+    my ( $self, $tree ) = @_;
+
+    if ( $self->get_name() ne $tree->get_name() ) { return 0; }
+    return $self->get_rootnode()->_equals_test( $tree->get_rootnode() );
 }
 
 =head2 reroot
@@ -611,9 +668,11 @@ sub equals {
 
 sub reroot {
     my ( $self, $outgroup_name, $dist_back_to_newroot ) = @_;
-    croak
-        'An outgroup name must be supplied as an argument in order to reroot: '
-        unless defined $outgroup_name;
+    if ( not defined $outgroup_name ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => 'An outgroup name must be supplied as an argument in order to reroot'
+    	);
+    }
 
     my $tree = $self->clone();
 
@@ -705,8 +764,11 @@ sub _position_newroot {
                 $outgroup->set_length($dist_back_to_newroot);
             }
             else {
-                croak
-                    "Branch length error: The new root's position up the tree from the outgroup must be a positive number less than or equal to the outgroup's branch length.\n";
+                Bio::NEXUS::Util::Exceptions::BadNumber->throw(
+                	'error' => "Branch length error: The new root's position\n"
+                			. "up the tree from the outgroup must be a positive\n"
+                			. "number less than or equal to the outgroup's branch length.\n"
+                );
             }
         }
         else {
@@ -716,8 +778,11 @@ sub _position_newroot {
     }
     else {
         if ($dist_back_to_newroot) {
-            croak
-                "You provided a position for the new root on the outgroup's branch length, but the outgroup does not have a branch length.\n";
+        	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+        		'error' => "You provided a position for the new root on the\n"
+        				. "outgroup's branch length, but the outgroup does\n"
+        				. "not have a branch length.\n"
+        	);
         }
     }
 }
@@ -752,7 +817,11 @@ sub select_subtree {
     my ( $self, $nodename ) = @_;
     my $newroot  = $self->find($nodename);
     my $treename = $self->get_name();
-    $newroot or croak "ERROR: Node $nodename not found in $treename\n";
+    if ( not $newroot ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => "Node $nodename not found in $treename"
+    	);
+    }
     $newroot = $newroot->clone();    # need to clone subtree
     $newroot->set_parent_node();     # make it as root
     $newroot->set_support_value();
@@ -778,7 +847,12 @@ sub exclude_subtree {
     my $treename   = $self->get_name();
     my $tree       = $self->clone();
     my $removenode = $tree->find($nodename);
-    $removenode or croak "ERROR: Node $nodename not found in $treename\n";
+    
+    if ( not $removenode ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => "Node $nodename not found in $treename"
+    	);
+    }    
 
     my $parent   = $removenode->get_parent();
     my @children = @{ $parent->get_children() };
@@ -796,10 +870,25 @@ sub exclude_subtree {
     return $tree;
 }
 
+=head2 get_mrca_of_otus
+
+ Name    : get_mrca_of_otus
+ Usage   : $node = $self->get_mrca_of_otus($otus);
+ Function: gets the most recent common ancestor for the input $otus
+ Returns : Bio::NEXUS::Node object
+ Args    : $otus : Array reference of the OTUs
+
+=cut
+
+sub get_mrca_of_otus {
+    my ( $self, $otus) = @_;
+    my $root_node = $self->get_rootnode;
+   return $root_node->get_mrca_of_otus($otus);
+}
+
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::Tree::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -813,11 +902,13 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
     return;
 }

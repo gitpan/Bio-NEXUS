@@ -1,5 +1,5 @@
 README file for the NEXPL library with accompanying tools.
-$Id: README,v 1.12 2006/09/06 10:57:23 vivek Exp $
+$Id: README,v 1.13 2007/04/02 20:22:30 mike Exp $
 
 ABOUT
 
@@ -26,6 +26,16 @@ Liang, W.-G. Qiu, P. Yang, V. Gopalan and A. Stoltzfus. Available from
 http://www.cpan.org.
 
 INSTALLATION AND TESTING
+
+Note that before installing Bio::NEXUS, you need the following
+modules installed on your system:
+
+Clone::PP (1.02 or higher)
+Test::More
+Test::Deep
+
+(if you are using the CPAN tool, it should install those dependencies
+automatically, though it hasn't been tested)
 
 This software has been tested under Linux as well as Mac OS X 10.2 and higher, 
 and even a few Windows installations. The package installs using the standard 

@@ -2,7 +2,7 @@
 # Functions.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: Functions.pm,v 1.9 2006/09/05 16:48:17 vivek Exp $
+# $Id: Functions.pm,v 1.15 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -28,7 +28,7 @@ All feedback (bugs, feature enhancements, etc.) is greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.9 $
+$Revision: 1.15 $
 
 =head1 METHODS
 
@@ -37,12 +37,11 @@ $Revision: 1.9 $
 package Bio::NEXUS::Functions;
 
 use strict;
-use Data::Dumper;
-use Carp;
-
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@EXPORT @EXPORT_OK @ISA);
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
+use Bio::NEXUS::Util::Exceptions;
+use vars qw(@EXPORT @EXPORT_OK @ISA $VERSION);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 use Exporter ();
 
 @ISA    = qw ( Exporter );
@@ -82,7 +81,9 @@ use Exporter ();
 sub _slurp {
     my ($filename) = @_;
     open my $fh, '<', "$filename"
-        || croak "ERROR: Could not open filename <$filename> for input; $!\n";
+        || Bio::NEXUS::Util::Exceptions::FileError->throw(
+    	'error' => "ERROR: Could not open filename <$filename> for input; $!"
+    ); 
     my $file_content = do { local ($/); <$fh> };
     return $file_content;
 }
@@ -102,21 +103,30 @@ sub _slurp {
 
 sub _parse_nexus_words {
     my $buffer = shift;
-    croak
-        '_parse_nexus_words() requires a text string argument (the text to be parsed)'
-        unless defined $buffer;
+    if ( not defined $buffer ) {
+	    Bio::Phylo::Util::Exceptions::BadArgs->throw(
+    		'error' => '_parse_nexus_words() requires a text string argument (the text to be parsed)'
+    	);
+    }
     my @words;
     my ( $word, $in_quotes ) = ( q{}, 0 );
 
-    my @chars = split( //, $buffer );
+    my @chars         = split( //, $buffer );
+    my $comment_level = 0;
 
     # iterate through the characters
     for ( my $i = 0; $i < @chars; $i++ ) {
         my $char = $chars[$i];
         my $next = $chars[ $i + 1 ];
 
+        if ($comment_level) {
+            $comment_level++ if ( $char eq '[' );
+            $comment_level-- if ( $char eq ']' );
+            $word .= $char;
+        }
+
         # If we see a quote
-        if ( $char eq q{'} ) {
+        elsif ( $char eq q{'} ) {
 
             # and we're already inside quotes . . .
             if ($in_quotes) {
@@ -156,16 +166,21 @@ sub _parse_nexus_words {
             # We're in a quoted string, so anything can be part of the word
             $word .= $char;
         }
+        elsif ( $char eq '[' ) {
+            $comment_level++;
+            $word .= $char;
+        }
 
         # If we see NEXUS-style punctuation
-        elsif ( $char =~ /[-(){}\/\\,;:=*"`+<>]/ ) {
+        elsif ( $char =~ /[\[\]\-(){}\/\\,;:=*"`+<>]/ ) {
             push @words, &_ntsa($word)
 
                 # $word will be q{} if there was a preceding space;
                 # otherwise, it will contain some string
                 unless $word eq q{};
 
-# then that counts as a word (we'll deal with pos/neg numbers later in _rebuild_numbers() if that gets called)
+			# then that counts as a word (we'll deal with pos/neg 
+			# numbers later in _rebuild_numbers() if that gets called)
             push @words, $char;
             $word = q{};
         }

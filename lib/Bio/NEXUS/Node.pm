@@ -1,8 +1,8 @@
 ######################################################
 # Node.pm
 ######################################################
-# Author:  Weigang Qiu, Eugene Melamud, Chengzhi Liang, Peter Yang, Thomas Hladish
-# $Id: Node.pm,v 1.53 2006/09/11 23:15:35 thladish Exp $
+# Author:  Weigang Qiu, Eugene Melamud, Chengzhi Liang, Peter Yang, Thomas Hladish, Vivek Gopalan
+# $Id: Node.pm,v 1.69 2008/03/10 19:15:41 vivekgopalan Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -41,10 +41,15 @@ package Bio::NEXUS::Node;
 
 use strict;
 use Bio::NEXUS::Functions;
-use Data::Dumper;
-use Carp;
+use Bio::NEXUS::NHXCmd;
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw($VERSION $AUTOLOAD);
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 sub BEGIN {
     eval {
@@ -70,7 +75,7 @@ sub BEGIN {
 
 sub new {
     my ($class) = @_;
-    my $self = {};
+    my $self = { _nhx_obj => undef };
     bless $self, $class;
     return $self;
 }
@@ -89,6 +94,9 @@ sub clone {
     my ($self) = @_;
     my $class = ref($self);
     my $newnode = bless( { %{$self} }, $class );
+    if ( defined $self->{_nhx_obj} ) {
+        $newnode->{_nhx_obj} = $self->clone_nhx_command;
+    }
     my @children = @{ $newnode->get_children() };
     $newnode->set_children();
     for my $child (@children) {
@@ -228,18 +236,20 @@ sub get_total_length {
 
 sub set_support_value {
     my ( $self, $bootstrap ) = @_;
-    confess
-        "Attempt to set bad branch support value: <$bootstrap> is not a valid number: $!"
-        unless _is_number($bootstrap)
-        or ( not defined $bootstrap );
+    if ( defined $bootstrap and not _is_number($bootstrap) ) {
+    	$logger->info("Attempt to set bad branch support value: <$bootstrap> is not a valid number");
+    }
+    elsif ( not defined $bootstrap ) {
+    	$logger->info("Attempt to set undefined branch support value");
+    }
 
-    $self->{'bootstrap'} = $bootstrap;
+    $self->set_nhx_tag( 'B', [$bootstrap] );
 }
 
 =head2 get_support_value
 
  Title   : get_support_value
- Usage   : $bootstrap=$node->get_support_value();
+ Usage   : $bootstrap = $node->get_support_value();
  Function: Returns the branch support value associated with this node
  Returns : bootstrap value (integer) or undef if nonexistent
  Args    : none
@@ -247,12 +257,9 @@ sub set_support_value {
 =cut
 
 sub get_support_value {
-    if ( defined $_[0]->{'bootstrap'} ) {
-        return $_[0]->{'bootstrap'};
-    }
-    else {
-        return undef;
-    }
+    my ($self)        = @_;
+    my ($support_val) = $self->get_nhx_values('B');
+    return $support_val;
 }
 
 =begin comment
@@ -387,18 +394,24 @@ sub add_child {
     push @{ $self->{'children'} }, $child;
 }
 
-=head2 distance
+=head2 get_distance
 
- Title   : distance
- Usage   : $distance = $node1->distance($node2);
+ Title   : get_distance
+ Usage   : $distance = $node1->get_distance($node2);
  Function: Calculates tree distance from one node to another (?)
  Returns : distance (floating-point number)
- Args    : node1, node2 (Bio::NEXUS::Node objects)
+ Args    : target node (Bio::NEXUS::Node objects)
 
 =cut
 
-sub distance {
+sub get_distance {
     my ( $node1, $node2 ) = @_;
+    if ( not defined $node2 ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => "Missing argument for 'get_distance' method.\n"
+    				."The target node is node has to be defined"
+    	);
+    }
     my $distance = 0;
     if ( $node1 eq $node2 ) {
         return 0;
@@ -442,46 +455,54 @@ sub distance {
 =head2 to_string
 
  Title   : to_string
- Usage   : my $string; $root->tree_string(\$string, 0)
+ Usage   : my $string; $root->tree_string(\$string, 0, $format)
  Function: recursively builds Newick tree string from root to tips 
  Returns : none
- Args    : reference to string, boolean $remove_inode_names flag
+ Args    : reference to string, boolean $remove_inode_names flag, string - $format (NHX or STD) 
 
 =cut
 
-sub to_string(\$) {
-    my ( $self, $outtree, $remove_inode_names ) = @_;
+sub to_string {
+    my ( $self, $outtree, $remove_inode_names, $out_format ) = @_;
 
     my $name = $self->get_name();
     $name = _nexus_formatted($name);
-    my $bootstrap = $self->get_support_value();
-    my $length    = $self->get_length();
-    my @children  = @{ $self->get_children() };
+
+    #my $bootstrap = $self->get_support_value();
+    my $comment =
+        ( $out_format =~ /NHX/i )
+        ? $self->nhx_command_to_string
+        : $self->get_support_value;
+    my $length   = $self->get_length();
+    my @children = @{ $self->get_children() };
 
     if (@children) {    # if $self is an internal node
         $$outtree .= '(';
 
         for my $child (@children) {
-            $child->to_string( $outtree, $remove_inode_names );
+            $child->to_string( $outtree, $remove_inode_names, $out_format );
         }
 
         $$outtree .= ')';
 
         if ( defined $name && !$remove_inode_names ) { $$outtree .= $name }
-        if ( defined $length )    { $$outtree .= ":$length" }
-        if ( defined $bootstrap ) { $$outtree .= "[$bootstrap]" }
+        if ( defined $length )  { $$outtree .= ":$length" }
+        if ( defined $comment ) { $$outtree .= "[$comment]" }
 
         $$outtree .= ',';
 
     }
     else {    # if $self is a terminal node
 
-        croak "OTU found without a name (terminal nodes must be named): $!"
-            unless defined $name;
+        if ( not defined $name ) {
+        	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+        		'error' => "OTU found without a name (terminal nodes must be named)"
+        	);
+        }
         $$outtree .= $name;
 
-        if ( defined $length )    { $$outtree .= ":$length" }
-        if ( defined $bootstrap ) { $$outtree .= "[$bootstrap]" }
+        if ( defined $length )  { $$outtree .= ":$length" }
+        if ( defined $comment ) { $$outtree .= "[$comment]" }
 
         $$outtree .= ',';
     }
@@ -535,7 +556,6 @@ sub walk {
     my ( $self, $nodes, $i ) = @_;
 
     my $name = $self->get_name();
-
     # if the node doesn't have a name, name it inode<number>
     if ( !$name ) {
         $self->set_name( 'inode' . $$i++ );
@@ -555,6 +575,7 @@ sub walk {
         }
     }
 
+    #print scalar @{$nodes}, "\n";;
     push @$nodes, $self;
 }
 
@@ -618,15 +639,20 @@ sub printall {
 
     my $children = $self->get_children();
     my $str      = "Name: ";
-    $str .= $self->get_name()          if ( $self->get_name() );
+    $str .= $self->get_name()   if ( $self->get_name() );
     $str .= "   OTU\?: ";
     $str .= $self->is_otu();
     $str .= "    Length: ";
-    $str .= $self->get_length()        if $self->get_length();
-    $str .= "    bootstrap: ";
-    $str .= $self->get_support_value() if $self->get_support_value();
+    $str .= $self->get_length() if $self->get_length();
+
+    #$str .= "    bootstrap: ";
+    #$str .= $self->get_support_value() if $self->get_support_value();
+    $str .= "    Comment: ";
+    $str .= $self->nhx_command_to_string() if $self->nhx_command_to_string();
     $str .= "\n";
-    carp($str);
+
+    #carp($str);
+    print $str;
 
     for my $child (@$children) {
         $child->printall();
@@ -648,14 +674,18 @@ sub printall {
 sub _parse_newick {
     no warnings qw( recursion );
     my ( $self, $words, $pos ) = @_;
-    croak
-        'ERROR: Bio::NEXUS::Node::_parse_newick() called without something to parse'
-        unless $words && @$words;
+    if ( not $words and not @$words ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => 'Bio::NEXUS::Node::_parse_newick() called without something to parse'
+    	);
+    }
     $pos = 0 unless $pos;
 
     for ( ; $pos < @$words; $pos++ ) {
         my $word = $words->[$pos];
 
+        # For parsing the comments within the NEXUS word.
+        $word = $self->_parse_comment($word);
         if ( $word eq '(' ) {
             my $parent_node = $self;
 
@@ -683,17 +713,50 @@ sub _parse_newick {
         elsif ( $word eq ':' ) {
             $pos = $self->_parse_length( $words, ++$pos );
         }
-##      The following would only be required for trees with bootstraps, but not
-##      lengths . . . I'm not sure that's worth supporting
-##
-        #        elsif ( $word =~ /\[(.*)\]/ ) {
-        #            $self->_parse_support_value( $words->[ ++$pos ] );
-        #        }
         else {
             $self->set_name($word);
         }
     }
     return $pos;
+}
+
+=begin comment
+
+ Title   : _parse_comment
+ Usage   : $self->_parse_comment($words,$pos);
+ Function: parses and stores comments in the nodes
+ Returns : none
+ Args    : $words, $pos string, which may contain bootstraps as well
+
+=end comment 
+
+=cut
+
+sub _parse_comment {
+    my ( $self, $word ) = @_;
+    my $nhx_obj;
+
+    if ( $word =~ s/\[(.*)\]// ) {
+
+        # parse non-empty comment string
+        my $comment_str = $1;
+        $nhx_obj = new Bio::NEXUS::NHXCmd($comment_str);
+
+        # check if the comment was an NHX command (&&NHX)
+        if ( defined $nhx_obj->to_string ) {
+            $self->{'is_nhx'} = 1;
+        }
+        else {
+            $self->{'is_nhx'} = 0;
+            $nhx_obj->set_tag( 'B', [$comment_str] );
+            $self->_parse_support_value($comment_str) if defined $comment_str;
+
+            #$nhx_obj = new Bio::NEXUS::NHXCmd();
+            #$nhx_obj->set_tag('B',$support_value);
+        }
+        $self->{_nhx_obj} = $nhx_obj;
+    }
+    return $word;
 }
 
 =begin comment
@@ -711,22 +774,25 @@ sub _parse_newick {
 sub _parse_length {
     my ( $self, $words, $pos ) = @_;
 
-    my $length = $words->[$pos];
+    my $length;
 
     # number may have been split up if there were '-' (negative) signs
-    until ( !defined $words->[ $pos + 1 ] || $words->[ $pos + 1 ] =~ /^[),]$/ )
-    {
-        $length .= $words->[ ++$pos ];
+    until ( !defined $words->[$pos] || $words->[$pos] =~ /^[),]$/ ) {
+        $length .= $words->[ $pos++ ];
     }
+    --$pos;
 
-    if ( $length =~ s/\[(.*)\]// ) {
-        my $support_value = $1;
-        $self->_parse_support_value($support_value);
-    }
+    $length = $self->_parse_comment($length);
 
-    croak
-        "Bad branch length found in tree string: <$length> is not a valid number: $!"
-        unless _is_number($length);
+    # empty branch length definition
+    return $pos unless defined $length;
+
+	if ( not _is_number($length) ) {
+		Bio::NEXUS::Util::Exceptions::BadNumber->throw(
+			'error' => "Bad branch length found in tree string: <$length> is not a valid number"
+			
+		);
+	}
 
     if ( $length =~ /e/i ) {
         $length = _sci_to_dec($length);
@@ -750,9 +816,11 @@ sub _parse_length {
 sub _parse_support_value {
     my ( $self, $bootstrap ) = @_;
 
-    croak
-        "Bad branch support value found in tree string: <$bootstrap> is not a valid number: $!"
-        unless _is_number($bootstrap);
+	if ( not _is_number($bootstrap) ) {
+		Bio::NEXUS::Util::Exceptions::BadNumber->throw(
+			'error' => "Bad branch support value found in tree string: <$bootstrap> is not a valid number"
+		);
+	}
 
     $self->set_support_value( _sci_to_dec($bootstrap) )
         if defined _sci_to_dec($bootstrap);
@@ -772,8 +840,6 @@ sub _parse_support_value {
 sub find {
     my ( $self, $name ) = @_;
     my $nodename = $self->get_name();
-
-    #    carp("Starting the node find at node $nodename\n");
     my $children = $self->get_children();
     return $self if ( $self->get_name() eq $name );
     for my $child (@$children) {
@@ -803,7 +869,6 @@ sub prune {
             return "keep";
         }
         else {
-
             # otherwise, delete it
             return "delete";
         }
@@ -833,9 +898,12 @@ sub prune {
         my $self_length = $self->get_length() || 0;
         $self->set_length( $self_length + $child->get_length() );
         $self->set_support_value( $child->get_support_value() );
+        $self->set_nhx_obj( $child->get_nhx_obj()->clone )
+            if defined $child->{_nhx_obj};
         $self->_set_xcoord( $child->_get_xcoord() );
         $self->_set_ycoord( $child->_get_ycoord() );
         $self->{'children'} = $child->{'children'};
+
         if ( $child->is_otu() ) {
             $self->{'children'} = undef;
             undef $self->{'children'};
@@ -860,55 +928,113 @@ sub prune {
 =cut
 
 sub equals {
-    my ( $self, $node ) = @_;
+    my ( $self, $other ) = @_;
 
-    # if both OTUs
-    if ( $self->is_otu() && $node->is_otu() ) {
-        if ( $self->get_name() ne $node->get_name() ) { return 0; }
-        if ( $self->get_length() && $node->get_length() ) {
-            if ( $self->get_length() != $node->get_length() ) { return 0; }
-        }
-        elsif ( $self->get_length() || $node->get_length() ) { return 0; }
-        return 1;
-    }
-
-    # if one is OTU
-    if ( $self->is_otu() || $node->is_otu() ) { return 0; }
-
-    # if both are not OTUs, check value first
-    if (   ( $self->get_name() && $node->get_name() )
-        && ( $self->get_name() ne $node->get_name() )
-        || ( $self->get_support_value() && $node->get_support_value() )
-        && ( $self->get_support_value() != $node->get_support_value() )
-        || ( $self->get_length() && $node->get_length() )
-        && ( $self->get_length() != $node->get_length() ) )
+    # 1 if only one is OTU
+    if (   ( $self->is_otu() && !$other->is_otu() )
+        || ( !$self->is_otu() && $other->is_otu() ) )
     {
+
+        # not the same
         return 0;
     }
 
-    # check children
-    my @ch1 = @{ $self->get_children() };
-    my @ch2 = @{ $node->get_children() };
+    # 2. both are OTUs
+    if ( $self->is_otu() && $other->is_otu() ) {
+        if ( $self->_same_attributes($other) ) {
 
-    # check children number
-    if ( scalar @ch1 != scalar @ch2 ) { return 0; }
+            # ...
+            return 1;
+        }
+        else {
+            return 0;
+        }
+    }
 
-    # compare each pair of children (cannot sort -- some no name)
-    for ( my $i = 0; $i < scalar @ch1; $i++ ) {
-        my $match = 0;
-        for ( my $j = $i; $j < scalar @ch2; $j++ ) {
-            if ( $ch1[$i]->equals( $ch2[$j] ) ) {
+    # 3. neither is OTU
+    my @self_children  = @{ $self->get_children() };
+    my @other_children = @{ $other->get_children() };
 
-                # reoder children if found two equal
-                my @temp = splice( @ch2, $j );
-                my $temp = shift @temp;
-                @ch2 = ( $temp, @ch2, @temp );
-                $match = 1;
-                last;
+    # compare the attributes of the nodes - see if different
+    if ( !$self->_same_attributes($other) ) { return 0; }
+
+    my $num_of_kids = scalar @self_children;
+
+    if ( scalar @self_children != scalar @other_children ) {
+
+        # children are different (their quantity differs)
+        return 0;
+    }
+    else {
+        for ( my $self_index = 0; $self_index < $num_of_kids; $self_index++ ) {
+            my $found = 'false';
+
+            for (
+                my $other_index = $self_index;
+                $other_index < $num_of_kids;
+                $other_index++
+                )
+            {
+
+                # the fun part starts here
+                # comparing the unsorted arrays of children
+
+                if ( $self_children[$self_index]
+                    ->equals( $other_children[$other_index] ) )
+                {
+                    $found = 'true';
+
+                    # pull out the child that was found and add it to
+                    # the front of the array
+                    my $temp = $other_children[$other_index];
+                    splice( @other_children, $other_index, 1 );
+                    unshift( @other_children, $temp );
+
+                    last;
+                }
+            }
+
+            if ( $found eq 'false' ) {
+                return 0;
             }
         }
-        if ( !$match ) { return 0; }
     }
+
+    return 1;
+
+}
+
+# helper function that compares attributes of two node objects
+sub _same_attributes {
+    my ( $self, $other ) = @_;
+
+	# mighty one-liner (if the length of one of the nodes is defined, and the length of the other node is not, return false)
+	return 0 if (!((defined $self->get_length() && defined $other->get_length())
+					||
+					(! defined $self->get_length() && ! defined $other->get_length())));
+	
+	if (defined $self->get_length() && defined $other->get_length()) {
+			if ( $self->get_length() != $other->get_length() ) { return 0; }
+	}
+
+    # if the nodes are internal, don't check their names...
+    # they will most likely differ
+    if ( $self->is_otu() && $other->is_otu() ) {
+        if ( $self->get_name() ne $other->get_name() ) { return 0; }
+    }
+
+    if ( defined $self->get_nhx_obj() && defined $other->get_nhx_obj() ) {
+        if ( !$self->get_nhx_obj()->equals( $other->get_nhx_obj ) ) {
+            return 0;
+        }
+    }
+    if ( !defined $self->get_nhx_obj() && defined $other->get_nhx_obj() ) {
+        return 0;
+    }
+    if ( defined $self->get_nhx_obj() && !defined $other->get_nhx_obj() ) {
+        return 0;
+    }
+
     return 1;
 }
 
@@ -923,7 +1049,8 @@ sub equals {
 =cut
 
 sub get_siblings {
-    my $self       = shift;
+    my $self = shift;
+    return [] unless defined $self->get_parent;
     my $generation = $self->get_parent()->get_children();
     my $siblings   = [];
     for my $potential_sibling ( @{$generation} ) {
@@ -946,9 +1073,17 @@ sub get_siblings {
 
 sub is_sibling {
     my ( $self, $node2 ) = @_;
+    if ( not defined $node2 ) {
+    	Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+    		'error' => "Missing argument for 'is_sibling' method.\n"
+    				. " The node object to test for sibiling has to be given as argument"
+    	);
+    }
     my $parent1 = $self->get_parent();
     my $parent2 = $node2->get_parent();
-    return "1" if $parent1 eq $parent2;
+    return "1"
+        if ( ( defined $parent1 and defined $parent2 )
+        and $parent1 eq $parent2 );
     return "0";
 }
 
@@ -977,6 +1112,8 @@ sub _rearrange {
     # set new parent as parent, self as child
     $newparent->adopt( $self, 0 );
     $self->set_support_value( $newparent->get_support_value() );
+    $self->set_nhx_obj( $newparent->get_nhx_obj()->clone )
+        if defined $newparent->{_nhx_obj};
     $self->set_length( $newparent->get_length() );
 
     return $self;
@@ -1020,6 +1157,8 @@ sub combine {
     my ( $self, $child ) = @_;
     $self->set_name( $child->get_name() );
     $self->set_support_value( $child->get_support_value() );
+    $self->set_nhx_obj( $child->get_nhx_obj()->clone )
+        if defined $child->{_nhx_obj};
     $self->set_length( ( $self->get_length() || 0 ) + $child->get_length() );
     $self->set_children();
     $self->set_children( $child->get_children() )
@@ -1113,7 +1252,7 @@ sub set_depth {
 
 sub get_depth {
     my $self = shift;
-    return $self->{'get_depth'};
+    return $self->{'depth'};
 }
 
 =head2 find_lengths
@@ -1140,14 +1279,22 @@ sub find_lengths {
 
  Title     : mrca
  Usage     : $mrca = $otu1-> mrca($otu2, $treename);
- Function: Finds most recent common ancestor of otu1 and otu2
- Returns : Node object of most recent common ancestor
- Args     : Nexus object, two otu objects, name of tree to look in
+ Function  : Finds most recent common ancestor of otu1 and otu2
+ Returns   : Node object of most recent common ancestor
+ Args      : Nexus object, two otu objects, name of tree to look in
 
 =cut
 
 sub mrca {
     my ( $otu1, $otu2, $treename ) = @_;
+    if ( not $otu1->is_otu and not $otu2->is_otu ) {
+    	Bio::NEXUS::Util::Exceptions::ObjectMismatch->throw(
+    		'error' => "the mrca method to calculate most recent\n"
+    				. "common ancestor can be performed only on\n"
+    				. "an OTU node and also requires another OTU\n"
+    				. "node (target) as input argument"
+    	);
+    }
 
     my $currentnode = $otu1;
     my @ancestors;
@@ -1167,9 +1314,53 @@ sub mrca {
     }
 }
 
+=head2 get_mrca_of_otus
+
+ Title     : get_mrca_of_otus
+ Usage     : $mrca = $root->get_mrca_of_otus(\@otus);
+ Function  : Finds most recent common ancestor of set of OTUs
+ Returns   : Node object of most recent common ancestor
+ Args      : Nexus object, two otu objects, name of tree to look in
+
+=cut
+
+sub get_mrca_of_otus {
+
+# Not yet implemented completely. Still in the testing mode -- Vivek Gopalan 10MAR2007.
+# Used in assigning meaning inode names to gene tree based on species tree and species names of the OTUs of the inodes.
+# Note: Internal nodes can also be given as input instead of the OTU to find the mrca;
+
+    my ($self, $otus, $ancestors ) = @_;
+    $ancestors ||= [];
+    my @inp_otus = @{$otus};
+    my $node_otus =[];
+    $self->walk($node_otus);
+    my $eq_count = 0 ;
+    foreach my $inp_otu (@inp_otus) {
+	    if ( grep {$_->get_name eq $inp_otu} @{$node_otus}) {
+		    $eq_count++;
+		    last if $eq_count == scalar @inp_otus;
+	    }
+	    #print "$inp_otu $eq_count\n";
+    }
+    if ($eq_count == scalar @inp_otus) {
+	    #print Dumper $ancestors;
+	    push @{$ancestors}, $self;
+	    foreach my $child ( @{$self->get_children} ) {
+		    next if $child->is_otu;
+		    $child->get_mrca_of_otus($otus, $ancestors);
+	    }
+	    #print $self->get_name, "," , $eq_count, ", ", scalar @inp_otus, "\n";
+    if (scalar @{$ancestors}) {
+	    return $ancestors->[$#{$ancestors}];
+    }
+    }
+    return;
+
+}
+
 sub AUTOLOAD {
-    our $AUTOLOAD;
-    return if $AUTOLOAD =~ /DESTROY$/;
+	return if $AUTOLOAD =~ /DESTROY$/;
     my $package_name = 'Bio::NEXUS::Node::';
 
     # The following methods are deprecated and are temporarily supported
@@ -1183,6 +1374,7 @@ sub AUTOLOAD {
         "${package_name}children"    => "${package_name}get_children",
         "${package_name}length"      => "${package_name}get_length",
         "${package_name}seq"         => "${package_name}get_seq",
+        "${package_name}distance"    => "${package_name}get_distance",
         "${package_name}xcoord"      => "${package_name}_get_xcoord",
         "${package_name}ycoord"      => "${package_name}_get_ycoord",
         "${package_name}set_xcoord"  => "${package_name}_set_xcoord",
@@ -1194,14 +1386,250 @@ sub AUTOLOAD {
         "${package_name}parse"       => "${package_name}_parse_newick",
     );
 
-    if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+    if ( defined $synonym_for{$AUTOLOAD} ) {        
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
     return;
+}
+
+################## NHXCmd adapter functions ###############
+
+=head2 contains_nhx_tag
+
+Title   : contains_nhx_tag
+Usage   : $node_obj->_contains_nhx_tag($tag_name)
+Function: Checks if a given tag exists
+Returns : 1 if the tax exists, 0 if it doesn't
+Args    : $tag_name - a string representation of a tag
+
+=cut
+
+sub contains_nhx_tag {
+    my ( $self, $tag_name ) = @_;
+    if ( defined $self->{_nhx_obj} ) {
+        return $self->{_nhx_obj}->contains_tag($tag_name);
+    }
+
+}    # end of sub
+
+=head2 get_nhx_tags
+
+Title   : get_nhx_tags
+Usage   : $node_obj->get_nhx_tags(); 
+Function: Reads and returns an array of tags
+Returns : An array of tags
+Args    : None
+
+=cut
+
+sub get_nhx_tags {
+    my ($self) = @_;
+    if ( defined $self->{_nhx_obj} ) {
+        return $self->{_nhx_obj}->get_tags();
+    }
+    else {
+        return ();
+    }
+}
+
+=head2 get_nhx_values 
+
+Title   : get_nhx_values
+Usage   : $node_obj->get_nhx_values($tag_name);
+Function: Returns the list of values associated with a given tag ($tag_name)
+Returns : Array of values
+Args    : $tag_name - a string representation of the tag
+
+=cut
+
+sub get_nhx_values {
+    my ( $self, $tag_name ) = @_;
+
+    if ( defined $self->{_nhx_obj}
+        && $self->{_nhx_obj}->contains_tag($tag_name) )
+    {
+        return $self->{_nhx_obj}->get_values($tag_name);
+    }
+    else {
+        return ();
+    }
+}
+
+=head2 set_nhx_tag
+
+Title   : set_nhx_tag
+Usage   : node_obj->set_nhx_tag($tag_name, $tag_reference);
+Function: Updates the list of values associated with a given tag
+Returns : Nothing
+Args    : $tag_name - a string, $tag_reference - an array-reference
+
+=cut
+
+sub set_nhx_tag {
+    my ( $self, $tag_name, $tag_values ) = @_;
+	if ( not defined $tag_name || not defined $tag_values ) {
+		Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+			'error' => "tag_name or tag_values is not defined"
+		);
+	}
+	if ( ref $tag_values ne 'ARRAY' ) {
+		Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+			'error' => 'tag_values is not an array reference'
+		);
+	}
+    $self->{_nhx_obj} = new Bio::NEXUS::NHXCmd
+        unless ( defined $self->{_nhx_obj} );
+    $self->{_nhx_obj}->set_tag( $tag_name, $tag_values );
+
+}
+
+=head2 add_nhx_tag_value
+
+Title   : add_nhx_tag_value
+Usage   : $node_obj->add_nhx_tag_value($tag_name, $tag_value);
+Function: Adds a new tag/value set to the $nhx_obj;
+Returns : Nothing
+Args    : $tag_name - a string, $tag_reference - an array-reference
+
+=cut
+
+sub add_nhx_tag_value {
+    my ( $self, $tag_name, $tag_value ) = @_;
+
+    $self->{_nhx_obj} = new Bio::NEXUS::NHXCmd
+        unless ( defined $self->{_nhx_obj} );
+    return $self->{_nhx_obj}->add_tag_value( $tag_name, $tag_value );
+
+}
+
+=head2 delete_nhx_tag
+
+Title   : delete_nhx_tag
+Usage   : $node_obj->delete_nhx_tag($tag_name);
+Function: Removes a given tag (and the associated valus) from the $nhx_obj
+Returns : Nothing
+Args    : $tag_name - a string representation of the tag
+
+=cut
+
+sub delete_nhx_tag {
+    my ( $self, $tag_name ) = @_;
+    if ( defined( $self->{_nhx_obj} ) ) {
+        $self->{_nhx_obj}->delete_tag($tag_name);
+    }
+
+}
+
+=head2 delete_all_nhx_tags
+
+Title   : delete_all_nhx_tags
+Usage   : $node_obj->delete_all_nhx_tags();
+Function: Removes all tags from $nhx_obj
+Returns : Nothing
+Args    : None
+
+=cut
+
+sub delete_all_nhx_tags {
+    my ($self) = @_;
+
+    $self->{_nhx_obj}->delete_all_tags() if defined $self->{_nhx_obj};
+}
+
+=head2 nhx_command_to_string 
+
+Title   : nhx_command_to_string
+Usage   : $node_obj->nhx_command_to_string();
+Function: As NHX command string
+Returns : NHX command string
+Args    : None
+
+=cut
+
+sub nhx_command_to_string {
+    my ($self) = @_;
+    if ( defined $self->{_nhx_obj} ) {
+        return $self->{_nhx_obj}->to_string();
+    }
+    else {
+        return undef;
+    }
+}
+
+=head2 clone_nhx_command
+
+Title   : clone_nhx_command
+Usage   : $some_node_obj->clone_nhx_command($original_node);
+Function: Copies the data of the NHX command of the $original_node object into the NHX command of the $some_node_obj
+Returns : Nothing
+Args    : $original_node - Bio::NEXUS::NHXCmd object whose NHX command data will be cloned
+
+=cut
+
+sub clone_nhx_command {
+    my ($self) = @_;
+    if ( defined $self->{_nhx_obj} ) {
+        return $self->{_nhx_obj}->clone();
+    }
+    else {
+        return undef;
+    }
+
+}
+
+=head2 check_nhx_tag_value_present
+
+Title   : check_nhx_tag_value
+Usage   : $boolean = nhx_obj->check_nhx_tag_value($tag_name, $value);
+Function: check whether a particular value is present in a tag
+Returns : 0 or 1 [ true or false]
+Args    : $tag_name - a string, $value - scalar (string or number)
+
+=cut
+
+sub check_nhx_tag_value_present {
+    my ( $self, $tag_name, $tag_value ) = @_;
+
+
+    return $self->{_nhx_obj}->check_tag_value_present( $tag_name, $tag_value )
+        if defined $self->{_nhx_obj};
+}
+
+=head2 set_nhx_obj
+
+Title   : set_nhx_obj
+Usage   : $node->set_nhx_obj($nhx_obj);
+Function: Sets Bio::NEXUS::NHXCmd object associated with this node
+Returns : Nothing
+Args    : Reference of the NHXCmd object
+othing
+
+=cut
+
+sub set_nhx_obj {
+    my ( $self, $nhx_obj ) = @_;
+    $self->{_nhx_obj} = $nhx_obj;
+}
+
+=head2 get_nhx_obj
+
+Title   : get_nhx_obj
+Usage   : $nhx_obj = get_nhx_obj();
+Function: Returns Bio::NEXUS::NHXCmd object associated with this node
+Returns : Reference of the NHXCmd object
+Args    : Nothing
+
+=cut
+
+sub get_nhx_obj {
+    my ($self) = @_;
+    return $self->{_nhx_obj};
 }
 
 1;

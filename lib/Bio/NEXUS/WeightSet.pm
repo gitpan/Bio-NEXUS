@@ -2,7 +2,7 @@
 # WeightSet.pm
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish
-# $Id: WeightSet.pm,v 1.20 2006/09/05 16:48:17 vivek Exp $
+# $Id: WeightSet.pm,v 1.26 2007/09/24 04:52:11 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -40,10 +40,14 @@ package Bio::NEXUS::WeightSet;
 
 use strict;
 use Bio::NEXUS::Functions;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw($VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -116,10 +120,7 @@ sub set_weights {
 
 =cut
 
-sub get_weights {
-    my $self = shift;
-    return $self->{'weights'};
-}
+sub get_weights { shift->{'weights'} }
 
 =head2 select_weights
 
@@ -151,10 +152,7 @@ sub select_weights {
 
 =cut
 
-sub is_wt {
-    my $self = shift;
-    return $self->{'is_wt'};
-}
+sub is_wt { !!shift->{'is_wt'} }
 
 =begin comment
 
@@ -168,10 +166,7 @@ sub is_wt {
 
 =cut
 
-sub _is_tokens {
-    my $self = shift;
-    return $self->{'_is_tokens'};
-}
+sub _is_tokens { !!shift->{'_is_tokens'} }
 
 =begin comment
 
@@ -185,10 +180,7 @@ sub _is_tokens {
 
 =cut
 
-sub _is_vector {
-    my $self = shift;
-    uc $self->{'type'} eq 'VECTOR' ? return 1 : return 0;
-}
+sub _is_vector { uc( shift->{'type'} ) eq 'VECTOR' }
 
 =head2 set_name
 
@@ -215,10 +207,7 @@ sub set_name {
 
 =cut
 
-sub get_name {
-    my $self = shift;
-    return $self->{'name'};
-}
+sub get_name { shift->{'name'} }
 
 =head2 equals
 
@@ -237,15 +226,14 @@ sub equals {
     my @weights2 = @{ $weights->get_weights() };
     if ( @weights1 != @weights2 ) { return 0; }
     for ( my $i = 0; $i < @weights1; $i++ ) {
-        if ( $weights1[$i] != $weights2[$i] ) { return 0; }
+        if ( $weights1[$i] eq $weights2[$i] ) { return 0; }
     }
     return 1;
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::WeightSet::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -255,13 +243,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn( "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead" );
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

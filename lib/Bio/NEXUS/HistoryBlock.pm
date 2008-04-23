@@ -2,7 +2,7 @@
 # HistoryBlock.pm
 #######################################################################
 # Author: Chengzhi Liang, Justin Reese, Thomas Hladish
-# $Id: HistoryBlock.pm,v 1.24 2006/09/11 23:15:35 thladish Exp $
+# $Id: HistoryBlock.pm,v 1.28 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##########################
 
@@ -30,7 +30,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.24 $
+$Revision: 1.28 $
 
 =head1 METHODS
 
@@ -39,18 +39,20 @@ $Revision: 1.24 $
 package Bio::NEXUS::HistoryBlock;
 
 use strict;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::TaxUnitSet;
 use Bio::NEXUS::Block;
 use Bio::NEXUS::Node;
 use Bio::NEXUS::Tree;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::CharactersBlock Bio::NEXUS::TreesBlock);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -65,12 +67,17 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type };
+    if ( not $type ) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type 
+    };
     bless $self, $class;
     $self->{'otuset'} = new Bio::NEXUS::TaxUnitSet();
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    if ( ( defined $commands ) and @$commands ) {
+    	$self->_parse_block( $commands, $verbose )
+    }
     return $self;
 }
 
@@ -105,20 +112,20 @@ sub _parse_nodelabels {
 sub equals {
     my ( $self, $block ) = @_;
     if ( !Bio::NEXUS::Block::equals( $self, $block ) ) {
-        carp "First equals failed\n";
+        $logger->warn("First equals failed");
         return 0;
     }
     my $historytree1 = $self->get_tree();
     my $historytree2 = $block->get_tree();
     if ( !$historytree1->equals($historytree2) ) {
-        carp "Trees do not appear to be the same, failing equals\n";
+        $logger->warn("Trees do not appear to be the same, failing equals");
         return 0;
     }
 
     # check otus
 
     if ( !$self->get_otuset()->equals( $block->get_otuset() ) ) {
-        carp "otusets do not appear to be the same, failing equals\n";
+        $logger->warn("otusets do not appear to be the same, failing equals");
         return 0;
     }
 
@@ -142,6 +149,76 @@ sub rename_otus {
             $self->$coderef($translation);
         }
     }
+}
+
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::HistoryBlock::add_otu_clone() method not fully implemented\n";
+	# add the clone to the taxlabels list
+	$self->add_taxlabel($copy_otu_name);
+
+	# add the clone to the list
+	my @otus = @{ $self->{'otuset'}->get_otus() };
+	for my $otu (@otus) {
+		if (defined $otu) {
+			if ($otu->get_name() eq $original_otu_name) {
+				my $otu_clone = $otu->clone();
+				$otu_clone->set_name($copy_otu_name);
+				$self->{'otuset'}->add_otu($otu_clone);
+			}
+		}
+	}
+	
+	# . iterate through all trees:
+	for my $tree ( @{ $self->{'blockTrees'} }) {
+		# . find the original node
+		# if not found, something must be done !
+		my $original_node = $tree->find($original_otu_name);
+		if (! defined $original_node) {
+			$logger->info("TreesBlock::add_otu_clone(): original otu [$original_otu_name] was not found");
+		}
+		# . clone the node
+		my $cloned_node = $original_node->clone();
+		# . rename the new node
+		$cloned_node->set_name($copy_otu_name);
+		
+		# find the parent of the original node, add to it a new
+		# child that will be parent of both original and
+		# clone nodes. Remove the original node from the 
+		# list of children of its original parent
+		my $original_parent = $original_node->get_parent();
+		
+		for my $child ( @{ $original_parent->get_children() }) {
+			# print "Child name: ", $child->get_name(), "\n";
+			if ($child->get_name() eq $original_otu_name) {
+				my $new_parent = new Bio::NEXUS::Node();
+
+				$new_parent->set_length($original_node->get_length());
+						
+				$cloned_node->set_length(0);
+				$original_node->set_length(0);
+				
+				$new_parent->add_child($cloned_node);
+				$cloned_node->set_parent_node($new_parent);
+				$new_parent->add_child($original_node);
+				$original_node->set_parent_node($new_parent);
+
+				$child = $new_parent;
+				$new_parent->set_parent_node($original_parent);
+				last;
+			}
+		}
+	}
 }
 
 =begin comment
@@ -175,9 +252,8 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::HistoryBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -187,13 +263,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

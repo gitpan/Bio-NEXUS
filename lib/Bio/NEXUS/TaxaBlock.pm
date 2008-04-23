@@ -2,7 +2,7 @@
 # TaxaBlock.pm
 ######################################################
 # Author: Chengzhi Liang,  Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: TaxaBlock.pm,v 1.38 2006/09/11 23:15:35 thladish Exp $
+# $Id: TaxaBlock.pm,v 1.43 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.38 $
+$Revision: 1.43 $
 
 =head1 METHODS
 
@@ -43,17 +43,19 @@ $Revision: 1.38 $
 package Bio::NEXUS::TaxaBlock;
 
 use strict;
-use Carp;
-use Data::Dumper;
+#use Carp;# XXX this is not used, might as well not import it!
+#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Node;
 use Bio::NEXUS::Block;
 use Bio::NEXUS::TaxUnit;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions 'throw';
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -67,11 +69,16 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type, };
+    if ( not $type ) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type, 
+    };
     bless $self, $class;
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    if ( defined $commands and @$commands ) {
+    	$self->_parse_block( $commands, $verbose );
+    }
     return $self;
 }
 
@@ -91,7 +98,7 @@ sub is_taxon {
     for my $taxlabel (@$taxlabels) {
         if ( $taxlabel eq $query_taxon ) { return $taxlabel }
     }
-    if ( $verbose == 1 ) { print "$query_taxon is not a valid OTU name\n"; }
+    $logger->info("$query_taxon is not a valid OTU name");
     return undef;
 }
 
@@ -131,6 +138,34 @@ sub rename_otus {
     $self->set_taxlabels($newtaxlabels);
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	# todo:
+	# rename the method
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::TaxaBlock::add_otu_clone() method not fully implemented\n";
+	
+	if (defined $self->{'dimensions'}{'ntax'}) {
+		$self->{'dimensions'}{'ntax'}++;
+	}
+	else {
+		# the execution should never reach this point,
+		# b/c if an OTU is being cloned, ntax should
+		# be > or = '1'
+		throw 'BadArgs' => "add_otu_clone(): at least 1 otu exists, but 'ntax' is not initialized";
+	}
+	$self->add_taxlabel($copy_otu_name);
+}
+
 =head2 equals
 
  Name    : equals
@@ -143,16 +178,19 @@ sub rename_otus {
 
 sub equals {
     my ( $self, $block ) = @_;
-    if ( !Bio::NEXUS::Block::equals( $self, $block ) ) { return 0; }
-
-    #    if ($self->get_type() ne $block->get_type()) {return 0;}
+    if ( ! $self->SUPER::equals( $block ) ) { 
+    	return 0; 
+    }
+    
     my @labels1 = @{ $self->get_taxlabels() };
     my @labels2 = @{ $block->get_taxlabels() };
     if ( @labels1 != @labels2 ) { return 0; }
     @labels1 = sort { $a cmp $b } @labels1;
     @labels2 = sort { $a cmp $b } @labels2;
-    for ( my $i = 0; $i < @labels1; $i++ ) {
-        if ( $labels1[$i] ne $labels2[$i] ) { return 0; }
+    for my $i ( 0 .. $#labels1 ) {
+        if ( $labels1[$i] ne $labels2[$i] ) { 
+        	return 0; 
+        }
     }
     return 1;
 }
@@ -174,7 +212,7 @@ sub _write {
     $fh ||= \*STDOUT;
 
     my $ntax = $self->get_ntax();
-    Bio::NEXUS::Block::_write( $self, $fh );
+    $self->SUPER::_write($fh);
     print $fh "\tDIMENSIONS ntax=$ntax;\n";
     print $fh "\tTAXLABELS ";
     for my $OTU ( @{ $self->get_taxlabels() } ) {
@@ -185,9 +223,8 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::TaxaBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -195,13 +232,12 @@ sub AUTOLOAD {
         ( "${package_name}parse_labels" => "${package_name}_parse_taxlabels", );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnkownMethod' => "Unknown method $AUTOLOAD called";
     }
-    return;
 }
 
 1;

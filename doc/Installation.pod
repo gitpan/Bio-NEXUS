@@ -65,7 +65,7 @@ for UN*X systems.
 
 =back 
 
-=head2 Windoze Installation Notes
+=head2 Windows Installation Notes
 
 =over
 

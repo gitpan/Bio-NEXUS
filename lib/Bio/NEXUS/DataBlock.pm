@@ -2,7 +2,7 @@
 # DataBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: DataBlock.pm,v 1.10 2006/09/05 16:48:17 vivek Exp $
+# $Id: DataBlock.pm,v 1.13 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -32,7 +32,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.10 $
+$Revision: 1.13 $
 
 =head1 METHODS
 
@@ -41,15 +41,17 @@ $Revision: 1.10 $
 package Bio::NEXUS::DataBlock;
 
 use strict;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::CharactersBlock;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::CharactersBlock);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -64,16 +66,14 @@ use vars qw(@ISA);
 sub new {
     my $deprecated_class = shift;
     my $deprecated_type  = shift;
-    print
-        "    Read in Data Block (deprecated), creating Characters Block instead . . .\n";
+    $logger->info("Read in Data Block (deprecated), creating Characters Block instead");
     my $self = new Bio::NEXUS::CharactersBlock( 'characters', @_ );
     return $self;
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::DataBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -83,13 +83,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

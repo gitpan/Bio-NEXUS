@@ -2,7 +2,7 @@
 # UnknownBlock.pm
 ######################################################
 # Author: Peter Yang, Thomas Hladish
-# $Id: UnknownBlock.pm,v 1.20 2006/09/11 23:15:35 thladish Exp $
+# $Id: UnknownBlock.pm,v 1.27 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -29,7 +29,7 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated. The
 
 =head1 VERSION
 
-$Revision: 1.20 $
+$Revision: 1.27 $
 
 =head1 METHODS
 
@@ -38,14 +38,17 @@ $Revision: 1.20 $
 package Bio::NEXUS::UnknownBlock;
 
 use strict;
-use Carp;
+#use Carp; # XXX this is not used, might as well not import it!
+#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
-
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 @ISA = qw(Bio::NEXUS::Block);
+
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -60,9 +63,37 @@ use vars qw(@ISA);
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
     unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type, block => $commands, verbose => $verbose };
+    my $self = { type => $type, };
     bless $self, $class;
+    $self->_parse_block( $commands, $verbose );
     return $self;
+}
+
+=begin comment
+
+ Title   : _parse_block
+ Usage   : $block->_parse_block(\@commands, $verbose_flag);
+ Function: Simple block parser that stores commands literally
+ Returns : none
+ Args    : array ref of commands, as parsed by Bio::NEXUS::read; and an optional verbose flag
+
+=end comment
+
+=cut
+
+sub _parse_block {
+    my ( $self, $commands, $verbose ) = @_;
+    my $type = $self->get_type();
+    $logger->info("Analyzing $type block now.");
+
+CMD:
+    for my $command (@$commands) {
+        next CMD if $command =~ /^\s*(?:begin|end)/i;
+        push @{ $self->{'block'} }, $command;
+    }
+
+	$logger->info("Analysis of $type block complete.");
+    return;
 }
 
 =begin comment
@@ -86,12 +117,12 @@ sub _write {
         next if lc $cmd eq 'begin';
         print $fh "$cmd\n";
     }
+    print $fh "END;\n";
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::UnknownBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -101,13 +132,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn( "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead" );
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

@@ -2,7 +2,7 @@
 # AssumptionsBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: AssumptionsBlock.pm,v 1.36 2006/09/11 23:15:35 thladish Exp $
+# $Id: AssumptionsBlock.pm,v 1.50 2007/09/24 04:52:12 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.36 $
+$Revision: 1.50 $
 
 =head1 METHODS
 
@@ -43,16 +43,17 @@ $Revision: 1.36 $
 package Bio::NEXUS::AssumptionsBlock;
 
 use strict;
-use Carp;
-use Data::Dumper;
+#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
 use Bio::NEXUS::WeightSet;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions 'throw';
+use vars qw(@ISA $AUTOLOAD $VERSION);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -66,11 +67,18 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { 'type' => $type, 'assumptions' => [] };
-    bless $self, $class;
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    if ( not $type ) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type'        => $type, 
+    	'assumptions' => [], 
+    	'options'     => undef 
+    };
+    bless $self, $class;        
+    if ( ( defined $commands ) and @$commands ) {
+    	$self->_parse_block( $commands, $verbose );  
+    }
     return $self;
 }
 
@@ -99,14 +107,230 @@ sub _parse_wtset {
     $tokens = ( $flags =~ /notokens/i ) ? 0        : 1;
     $name    =~ s/^\s*(\S+)\s*$/$1/;
     $weights =~ s/^\s*(\S+.*\S+)\s*$/$1/s;
-    my @weights      = split //, $weights;
+    my @weights;
+    if ( $tokens ) {
+        @weights = split /\s*/, $weights;
+    }
+    else {
+        @weights = split //, $weights;
+    }
     my $is_weightset = 1;
-
-    my $new_weightset =
-        Bio::NEXUS::WeightSet->new( $name, \@weights, $is_weightset, $tokens,
-        $type );
+    my $new_weightset = Bio::NEXUS::WeightSet->new( 
+    	$name, 
+    	\@weights, 
+    	$is_weightset, 
+    	$tokens,
+        $type 
+    );
     $self->add_weightset($new_weightset);
     return ( $name, \@weights, $is_weightset, $tokens, $type );
+}
+
+=begin comment
+
+ Title   : _parse_options
+ Usage   : ...
+ Function: parses the $buffer and populates the 'options' data structure; see options command in the assumptions block (Maddison p 611)
+ Returns : n/a
+ Args    : $buffer (string) - the option command and its subcommands
+ Method  : extracts the options and their values from the buffer.
+    Creates a hash from those data, and adds it to the Bio::NEXUS::AssumptionsBlock object.
+
+=end comment 
+
+=cut
+
+sub _parse_options {
+    my ( $self, $buffer ) = @_;
+    my @mix = split( /\s+/, $buffer );
+    for my $word ( @mix ) {
+        my ( $command, $value ) = $word =~ m/^(.+?)=(.+)$/;
+        next if !defined $command;
+
+        # check if the value should be converted to a 'preferred synonym'
+        $command = lc $command;
+        $value   = lc $value;
+        if ( $value eq 'irrev.up' || $value eq 'irrev.dn' ) { $value = 'irrev' }
+        if ( $value eq 'dollo.up' || $value eq 'dollo.dn' ) { $value = 'dollo' }
+        $self->{'options'}->{$command} = $value;
+    }
+    $self->_validate_options($self->{'options'});
+}
+
+
+=begin comment
+
+ Title   : _validate_options
+ Usage   : _validate_options($options);
+ Function: checks if the options passed conform to the Nexus file standard
+ Returns : n/a
+ Args    : $options (hashref) - hash containing option-value pairs
+
+=end comment 
+
+=cut
+
+sub _validate_options {
+    my ( $self, $opts ) = @_;
+    my $is_valid = 1;
+    if ( defined $opts ) {
+		for my $option ( keys %{ $opts } ) {
+		    my $is_ok = 1;
+	    	my $value = $$opts{$option};
+		    if ($option eq 'deftype') {
+				if ($value !~ m/^(unord|ord|irrev|irrev\.up|irrev\.dn|dollo|dollo\.up|dollo\.dn)$/i) {
+				    $is_valid = 0;
+				    $is_ok = 0;
+				}
+		    }
+	    	elsif ($option eq 'polytcount') {
+				if ($value !~ m/^(maxsteps|minsteps)$/i) {
+				    $is_valid = 0;
+				    $is_ok = 0;
+				}
+		    }
+		    elsif ($option eq 'gapmode') {
+				if ($value !~ m/^(missing|newstate)$/i) {
+				    $is_valid = 0;
+			    	$is_ok = 0;
+				}
+		    }
+	    	# the option is not in the Nexus file standard
+		    else {
+				$is_valid = 0;
+				$logger->info("Unknown option $option");
+		    }
+		    if ( $is_ok == 0 ) {  
+	    		$logger->info("Unknown value ($value) for $option");
+		    }
+		}
+    }
+    else {
+		$logger->warn("Missing argument 'options'");
+		return 0;
+    }
+    return $is_valid;
+}
+
+
+=head2 get_option
+
+ Title   : get_option
+ Usage   : $val = $assump_block->get_option($option_type);
+ Function: Returns the value of the specified option
+ Returns : $value (string)
+ Args    : $option_type (string); nexus standard permits: deftype, polytcount, gapmode
+
+=cut
+
+sub get_option {
+    my ( $self, $option ) = @_;
+
+    return undef if not defined $option;
+    $option = lc $option;
+    if ( $option =~ qr/^(?:deftype|polytcount|gapmode)$/ ) {
+        if ( defined $self->{'options'}->{$option} ) {
+            return $self->{'options'}->{$option};
+        }
+        else {
+            return undef;
+        }
+    }
+    else {
+        if ( defined $self->{'options'}->{$option} ) {
+            return $self->{'options'}->{$option};
+        }
+        else { 
+        	return undef; 
+        }
+    }
+}
+
+=head2 set_option
+
+ Title   : set_option
+ Usage   : $assumption_block->set_option($option, $value)
+ Function: Updates/sets a particular option (DefType, PolyTCount, GapMode, etc.)
+ Returns : n/a
+ Args    : $option (string) , $value (string)
+
+=cut
+
+sub set_option {
+    my ( $self, $option, $value ) = @_;
+    if ( defined $option && defined $value ) {
+        $option                       = lc $option;
+        $value                        = lc $value;
+        $self->{'options'}->{$option} = $value;
+		# validate the input
+		my $data = {$option => $value};
+		$self->_validate_options($data);
+    }
+    else {
+        $logger->warn("Missing argument(s)");
+    }
+}
+
+=head2 get_all_options
+
+ Title   : get_all_options
+ Usage   : $hash_ref = $assumption_block->get_all_options();
+ Function: Retrieve all the options stored in the block
+ Returns : a hash reference (key-value pair), where each 'key' is an option (subcommand) and the 'value' is the corresponding value
+ Args    : none
+
+=cut
+
+sub get_all_options {
+    # note: this method returns a copy of
+    # the 'options' hash, rather thatn a 
+    # reference to the original. Why?
+    # By passing a reference to the actual
+    # data structure you give the user
+    # direct access to it. And ...
+    # direct access to the objects 
+    # bypasses the validation and correction
+    # which are a major part of the various
+    # 'set_' methods - not a good thing.
+    my ($self) = @_;
+
+    if ( defined $self->{'options'} ) {
+        my %options;
+        for my $key ( keys %{ $self->{'options'} } ) {
+            my $value = $self->{'options'}->{$key};
+            if ( defined $value ) {
+                $options{$key} = $value;
+            }
+        }
+		$self->_validate_options(\%options);
+        return \%options;
+    }
+    else {
+        return undef;
+    }
+}
+
+=head2 set_all_options
+
+ Title   : set_all_options
+ Usage   : $assumption_block->set_all_options($options);
+ Function: Updates/sets options (of this assumptions block) and their values
+ Returns : n/a
+ Args    : $options (hashref) {'option' => 'value', ... }
+
+=cut
+
+sub set_all_options {
+    my ( $self, $options ) = @_;
+    if ( defined $options ) {
+        for my $key ( keys %{$options} ) {
+            my $value = $$options{$key};
+            $self->{'options'}->{ lc $key } = lc $value;
+        }
+    }
+    else {
+        $logger->warn("Missing argument(s)");
+    }
 }
 
 =head2 add_weightset
@@ -134,10 +358,7 @@ sub add_weightset {
 
 =cut
 
-sub get_assumptions {
-    my ($self) = @_;
-    return $self->{'assumptions'} || [];
-}
+sub get_assumptions { shift->{'assumptions'} || [] }
 
 =head2 select_assumptions
 
@@ -158,6 +379,22 @@ sub select_assumptions {
     }
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	$logger->warn("Bio::NEXUS::AssumptionsBlock::add_otu_clone() method not fully implemented");
+
+}
+
 =head2 equals
 
  Name    : equals
@@ -170,23 +407,57 @@ sub select_assumptions {
 
 sub equals {
     my ( $self, $block ) = @_;
-    if ( !Bio::NEXUS::Block::equals( $self, $block ) ) { return 0; }
-
-    #    if ($self->get_type() ne $block->get_type()) {return 0;}
-
+    if ( ! $self->SUPER::equals($block) ) { 
+    	return 0; 
+    }
     my @weightset1 = @{ $self->get_assumptions() };
     my @weightset2 = @{ $block->get_assumptions() };
-
-    if ( @weightset1 != @weightset2 ) { return 0; }
-
-    @weightset1 = sort { $a->get_name() cmp $b->get_name() } @weightset1;
-    @weightset2 = sort { $a->get_name() cmp $b->get_name() } @weightset2;
-
-    for ( my $i = 0; $i < @weightset1; $i++ ) {
-        if ( !$weightset1[$i]->equals( $weightset2[$i] ) ) { return 0; }
+    if ( @weightset1 != @weightset2 ) { 
+    	return 0; 
     }
-
+    # XXX Schwartzian transforms
+    @weightset1 = 
+    	map  { $_->[0] }
+    	sort { $a->[1] cmp $b->[1] } 
+    	map  { [ $_, $_->get_name() ] } @weightset1;
+    @weightset2 =
+    	map  { $_->[0] } 
+    	sort { $a->[1] cmp $b->[1] }
+    	map  { [ $_, $_->get_name() ] } @weightset2;
+    for my $i ( 0 .. $#weightset1 ) {
+        if ( !$weightset1[$i]->equals( $weightset2[$i] ) ) { 
+        	return 0; 
+        }
+    }
     return 1;
+}
+
+=begin comment
+
+ Name    : _write_options
+ Usage   : $assump->_write_options($filehandle, $verbose);
+ Function: Writes 'options' command 
+ Returns : none
+ Args    : $fh - (filehandle) output target; if undefined, STDOUT will be used
+
+=end comment
+
+=cut
+
+sub _write_options {
+    my ( $self, $fh, $verbose ) = @_;
+    $fh ||= \*STDOUT;
+    my $return_val = "";
+    for my $option ( keys %{ $self->{'options'} } ) {
+        my $value = $self->{'options'}->{$option};
+        if ( defined $value && ( $value ne "" ) ) {
+            $return_val .= " " . $option . "=" . $value;
+        }
+    }
+    if ( $return_val ne "" ) {
+        $return_val = "Options" . $return_val . ";";
+        print $fh $return_val, "\n";
+    }
 }
 
 =begin comment
@@ -205,7 +476,8 @@ sub _write {
     my ( $self, $fh, $verbose ) = @_;
     $fh ||= \*STDOUT;
 
-    Bio::NEXUS::Block::_write( $self, $fh );
+    $self->SUPER::_write($fh);
+    $self->_write_options($fh);
     for my $assumption ( @{ $self->get_assumptions() } ) {
         if ( $assumption->is_wt() ) {
             my @wt        = @{ $assumption->get_weights() };
@@ -230,22 +502,22 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::AssumptionsBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
     my %synonym_for =
-        ( "${package_name}parse_weightset" => "${package_name}_parse_wtset", );
+      ( "${package_name}parse_weightset" => "${package_name}_parse_wtset", );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnkownMethod' => "ERROR: Unknown method $AUTOLOAD called";
     }
     return;
 }
 
+1;

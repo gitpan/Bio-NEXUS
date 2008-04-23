@@ -1,10 +1,10 @@
 ######################################################
 # NEXUS.pm
 ######################################################
-# Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: NEXUS.pm,v 1.89 2006/09/11 23:03:42 thladish Exp $
-# $Revision: 1.89 $
-
+#
+# $Id: NEXUS.pm,v 1.111 2008/04/18 17:51:41 astoltzfus Exp $
+# $Revision: 1.111 $
+#
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
@@ -43,8 +43,8 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated.
 package Bio::NEXUS;
 
 use strict;
-use Data::Dumper;
-use Carp;
+# use Data::Dumper; # XXX this is not used, might as well not load it!
+# use Carp; # XXX this is not used, might as well not load it!
 
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::AssumptionsBlock;
@@ -60,14 +60,23 @@ use Bio::NEXUS::UnknownBlock;
 use Bio::NEXUS::DataBlock;
 use Bio::NEXUS::DistancesBlock;
 
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions 'throw';
+
 #use Bio::NEXUS::CodonsBlock;
 #use Bio::NEXUS::NotesBlock;
 
-## The Version number has is obtained cvs NAME tag (eg. release_1_05). The makefile.PL reads
-#  version info from $VERSION variable.
+# Version number is obtained cvs $Name tag (eg. release_1_05).
+# ExtUtils::MakeMaker reads package global $VERSION
 
-use vars qw($VERSION);
-our $VERSION = do { my @r = ( q$Name: CPAN_release_0_67 $ =~ /\d+/g ); ( $#r < 0 ) ? '0.66' : sprintf " %d." . "%02d" x $#r, @r; };
+use vars qw($VERSION $AUTOLOAD);
+$VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.69' : sprintf " %d." . "%02d" x $#r, @r; };
+
+# a logger is an object that conditionally prints messages,
+# so we don't need to add print statements and then comment
+# them out anymore. You can leave the logging in the code, and
+# make it invisible by lowering the log level.
+my $logger = Bio::NEXUS::Util::Logger->new; # XXX
 
 =head2 new
 
@@ -81,11 +90,14 @@ our $VERSION = do { my @r = ( q$Name: CPAN_release_0_67 $ =~ /\d+/g ); ( $#r < 0
 
 sub new {
     my ( $class, $filename, $verbose ) = @_;
+    
+    # XXX notify user conditionally
+    $logger->info( "Constructor for $class called" );
     my $self = {};
     bless( $self, $class );
     if ($filename) {
         $self->read_file( $filename, $verbose );
-        $filename =~ s/.nex$//;
+        $filename =~ s/\.nex$//;
         $self->set_name($filename);
     }
     return $self;
@@ -103,16 +115,25 @@ sub new {
 
 sub read_file {
     my ( $self, $filename, $verbose ) = @_;
-    croak "ERROR: $filename is not a valid filename\n" unless -e $filename;
-    $self->read(
-        { 'format' => 'filename', 'param' => $filename, 'verbose' => $verbose }
-    );
+    if ( not -e $filename ) {
+    	
+    	# XXX refer to Bio::NEXUS::Util::Exceptions -
+    	# exceptions are generally more useful for 
+    	# tracking down problems
+    	throw 'FileError' => "$filename is not a valid filename";
+    }
+    $self->read( { 
+    	'format'  => 'filename', 
+    	'param'   => $filename, 
+    	'verbose' => $verbose,     
+    } );
 }
 
 =head2 read
 
  Title   : read
- Usage   : Bio::NEXUS->read({format => 'string', 'param' => $filename, 'verbose' => $verbose});
+ Usage   : Bio::NEXUS->read({format => 'string', 'param' => $buffer, 'verbose' => $verbose});
+ Usage   : Bio::NEXUS->read({format => 'file', 'param' => $filename, 'verbose' => $verbose});
  Function: Reads the contents of the NEXUS file and populate the data in the NEXUS object
  Returns : None
  Args    : $filename, $verbose, or none
@@ -129,6 +150,7 @@ sub read {
 
     if ( lc $args->{'format'} eq 'string' ) {
         $nexus_file = $args->{'param'};
+        $filename   = 'INPUT';
     }
     else {
         $filename   = $args->{'param'};
@@ -136,7 +158,7 @@ sub read {
     }
 
     # Read entire file into scalar $nexus_file
-    print("Reading NEXUS file...\n") if $verbose;
+    $logger->info('Reading NEXUS file');
     $self->{'filename'} = $filename;
 
     my $found_nexus_token     = 0;
@@ -147,6 +169,7 @@ sub read {
     my @command_level_strings = ();
     my $command               = '';
     my $in_tree_string        = 0;
+    my $prev_text_char        = '';
 
     for my $text_char ( split //, $nexus_file ) {
 
@@ -155,22 +178,29 @@ sub read {
         # to be used for a different meaning, and we need to support double
         # quotes in output from programs like clustal.  We will not, however,
         # output double quotes.)
-        if (   ( $text_char eq q{'} || $text_char eq q{"} )
+
+        $text_char = q{'} if $text_char eq q{"};
+
+        if (   ( $text_char eq q{'} )
             && $quote_level == 0
             && $comment_level == 0
             && $found_nexus_token )
         {
-            $command .= q{'};
-            $quote_level = 1;
-
+            $command .= $text_char;
+            $quote_level++;
         }
 
         # if we're inside a single-quoted string
-        elsif ( $quote_level == 1 ) {
+        elsif ( $quote_level > 0 ) {
             $command .= $text_char;
 
             #turn off the quote flag if we're ending the quoted string
-            $quote_level = 0 if $text_char eq q{'};
+            if ( $text_char eq q{'} ) {
+                $quote_level =
+                    ( $prev_text_char eq $text_char )
+                    ? $quote_level + 1
+                    : $quote_level - 1;
+            }
 
         }
 
@@ -206,40 +236,46 @@ sub read {
                 $command           = q{};
             }
 
-            # If the file starts with something else, then croak.
+            # If the file starts with something else, then throw.
             # This regex will match '#NEX' and '#NEXUS', but not '#NEXT'
             elsif ( $command !~ /^\s*(?:#(?:N(?:E(?:X(?:U(?:S)?)?)?)?)?)?$/i ) {
-                croak(
-                    "ERROR: '$filename' does not begin with the '#NEXUS' token; it does not appear to be a NEXUS file.\n"
-                );
+                throw 'BadFormat' => "'$filename' does not begin with the \n'#NEXUS' token; it does not appear to be a NEXUS file.\n";
             }
         }
 
         # if we're at the beginning of a block/command
-        elsif ( !$command ) {
-            if ($comment) { $self->add_comment($comment); $comment = q{} }
-            if ( $text_char ne "\n" ) { $command .= $text_char; }
-
+        elsif ( $command eq q{} ) {
+            if ( $comment ) {
+                push( @command_level_strings, $comment );
+                $comment = q{};
+            }
+            if ( $text_char ne "\n" ) { 
+            	$command .= $text_char; 
+            }
         }
 
         # if we're inside a block, but haven't gotten to the end of the command
         elsif ( $command !~ /;$/ ) {
-            if ( ( $block_type eq 'trees' || $block_type eq 'history' )
-                && $command =~ /\s*tree\s+.+=/i )
-            {
-                $in_tree_string = 1;
-            }
-            else { $in_tree_string = 0 }
             $command .= $text_char;
+            if (   ( $in_tree_string == 0 )
+                && ( $block_type eq 'trees' || $block_type eq 'history' )
+                && ( $text_char eq '=' ) )
+            {
+                $in_tree_string = 1 if ( $command =~ /tree\s.+=/i );
+            }
+            else { $in_tree_string = 0 if $text_char eq ';' }
         }
+
+        $prev_text_char = $text_char;
 
         # Only process if we might genuinely have reached the end
         # of a command or block
-        if ( !$comment_level && !$quote_level ) {
+        if ( !$comment_level && !$quote_level && $text_char eq ';' ) {
 
             # if we've read in the entire begin block command
             if ( $command =~ /begin\s+(.+)\s*;/i ) {
                 $block_type = lc $1;
+                $logger->info("found 'begin' token for a $block_type block");
                 push( @command_level_strings, $command );
                 $command = q{};
                 if ($comment) {
@@ -250,6 +286,7 @@ sub read {
 
             # if we've found the end of the block
             elsif ( $command =~ /^\s*end(?:block)?\s*;/i ) {
+            	$logger->info("found 'end' token");
                 $command = 'end';
                 push( @command_level_strings, $command );
                 $command = q{};
@@ -262,7 +299,6 @@ sub read {
                 my $block_obj =
                     $self->create_block( $block_type, \@command_level_strings,
                     $verbose );
-
                 $self->add_block($block_obj);
                 @command_level_strings = ();
                 $block_type            = q{};
@@ -273,7 +309,7 @@ sub read {
             # 'END BLOCK;' command, since we already asked that) remove the
             # semicolon at the end, since the block parsers aren't expecting
             # one, as well as surrounding white space.  Two substitutions
-            # are fast than one, in this case.
+            # are faster than one, in this case.
             elsif ( $command =~ s/\s*;\s*$// ) {
                 $command =~ s/^\s*//;
                 if ($comment) {
@@ -288,16 +324,12 @@ sub read {
 
     # Create a taxa block if we didn't find one in the file
     if ( !$self->get_block('taxa') ) {
-        print(
-            "    Since a taxa block doesn't exist in your file, one will be created for you.\n"
-            )
-            if $verbose;
+        $logger->info("No taxa block found, will create one");
         $self->set_taxablock;
     }
 
     my $counter = scalar @{ $self->get_blocks() };
-    print("$counter blocks have been read. NEXUS file read complete.\n")
-        if $verbose;
+    $logger->info("$counter blocks read. NEXUS read complete.");
     return $self;
 }
 
@@ -313,43 +345,43 @@ sub read {
 
 sub create_block {
     my ( $self, $block_type, $commands, $verbose ) = @_;
+    $logger->info("creating block $block_type");
     my $block;    # This will hold a block object, once one is constructed
+    my @args = ( $block_type, $commands, $verbose );
 
     my %block_types = (
-        assumptions => "Bio::NEXUS::AssumptionsBlock",
-        characters  => "Bio::NEXUS::CharactersBlock",
+        'assumptions' => "Bio::NEXUS::AssumptionsBlock",
+        'characters'  => "Bio::NEXUS::CharactersBlock",
 
-        #                        codons      =>    "Bio::NEXUS::CodonsBlock",
-        data      => "Bio::NEXUS::DataBlock",
-        distances => "Bio::NEXUS::DistancesBlock",
-        history   => "Bio::NEXUS::HistoryBlock",
+        # 'codons'      =>    "Bio::NEXUS::CodonsBlock",
+        'data'      => "Bio::NEXUS::DataBlock",
+        'distances' => "Bio::NEXUS::DistancesBlock",
+        'history'   => "Bio::NEXUS::HistoryBlock",
 
-        #                        notes       =>    "Bio::NEXUS::NotesBlock",
-        sets      => "Bio::NEXUS::SetsBlock",
-        span      => "Bio::NEXUS::SpanBlock",
-        taxa      => "Bio::NEXUS::TaxaBlock",
-        trees     => "Bio::NEXUS::TreesBlock",
-        unaligned => "Bio::NEXUS::UnalignedBlock"
+        # 'notes'       =>    "Bio::NEXUS::NotesBlock",
+        'sets'      => "Bio::NEXUS::SetsBlock",
+        'span'      => "Bio::NEXUS::SpanBlock",
+        'taxa'      => "Bio::NEXUS::TaxaBlock",
+        'trees'     => "Bio::NEXUS::TreesBlock",
+        'unaligned' => "Bio::NEXUS::UnalignedBlock"
     );
-    my $class       = $block_types{$block_type};
-    my $keyspattern = join( "|", keys %block_types );
+    my $class = $block_types{$block_type};
+    $logger->info("class: $class");
 
     my $taxlabels;
     if ( defined $self->get_block('taxa') ) {
         $taxlabels = $self->get_taxlabels();
     }
-    if ( $block_type =~ /($keyspattern)/i ) {
-        $block = $class->new( $block_type, $commands, $verbose, $taxlabels );
+    if ( $class ) {
+        $block = $class->new( @args, $taxlabels );
     }
     else {
-        print
-            "    An UnknownBlock is being created for block_type: $block_type\n";
-        $block =
-            new Bio::NEXUS::UnknownBlock( $block_type, $commands, $verbose );
+        $logger->info("An UnknownBlock is being created for block_type: $block_type");
+        $block = Bio::NEXUS::UnknownBlock->new( @args );
     }
 
-    if ( lc $block_type eq 'taxa' && $block->get_title() ) {
-        $self->set_name( $block->get_title );
+    if ( $block_type =~ m/taxa/i and my $title = $block->get_title() ) {
+        $self->set_name( $title );
     }
 
     # Check to make sure that if a Taxa Block is defined,
@@ -388,8 +420,7 @@ sub _validate_taxa {
         for my $label (@block_taxa) {
             my $match = 0;
             next LABEL if grep { $label eq $_ } @taxlabels;
-            croak
-                "Taxon <$label> in $block_type block is not in the TAXA Block\n";
+            throw 'ObjectMismatch' => "Taxon <$label> in $block_type block is not in the TAXA Block";
         }
     }
 
@@ -402,8 +433,7 @@ sub _validate_taxa {
         ELEMENT:
             for my $element (@elements) {
                 next ELEMENT if grep { $element eq $_ } @taxlabels;
-                croak
-                    "Element <$element> of set <$setname> is not in the TAXA Block\n";
+                throw 'ObjectMismatch' =>  "Element <$element> of set <$setname> is not in the TAXA Block";
             }
         }
     }
@@ -424,8 +454,8 @@ sub clone {
     my ($self) = @_;
     my $class = ref($self);
     my $newnexus = bless( { %{$self} }, $class );
-
-    # clone blocks
+	
+	# clone blocks
     my @newblocks;
     for my $block ( @{ $self->get_blocks() } ) {
         push @newblocks, $block->clone();
@@ -559,28 +589,39 @@ sub add_block {
 
 sub remove_block {
     my ( $self, $blocktype, $title ) = @_;
-
-    my @blocks_and_comments = @{ $self->get_blocks_and_comments() };
+    my $items = $self->get_blocks_and_comments();
     my $found_block         = 0;
-    for ( my $i = 0; $i < @blocks_and_comments; $i++ ) {
-        my $block_or_comment = $blocks_and_comments[$i];
-        next if _is_comment($block_or_comment);
-        if ( lc $block_or_comment->get_type() eq lc $blocktype ) {
-
+    ITEM: for my $i ( 0 .. $#{ $items } ) {
+        my $item = $items->[$i];
+        next ITEM if _is_comment($item);
+        if ( $item->get_type() =~ m/$blocktype/i ) {
+	    
             # if either no title was specified, or the title matches
-            if ( !$title
-                || ( $title && $block_or_comment->get_title =~ /$title/i ) )
-            {
-                splice( @blocks_and_comments, $i, 1 );
+            if ( !$title || $item->get_title =~ m/$title/i ) {
+            	$logger->info("> found the block!");
+            	
+				# the next statement removes a reference
+				# from a copy array - but will it remove the
+				# reference from the actual array of blocks? 
+				# XXX yes -- RAV
+				splice( @{ $items }, $i, 1 );
+				
+				# sanity check
+				$logger->info('> blocks_and_comments.length: ' . scalar @{ $items } );
+				$logger->info('> self->get_blocks_and_comments.length: ' . scalar @{ $self->get_blocks_and_comments() } );
+				
                 $found_block = 1;
             }
         }
+		$self->{'block_level'} = $items;
     }
 
-    unless ($found_block) {
+    if ( not $found_block ) {
         my $blockname = $blocktype;
-        if ($title) { $blockname .= " ($title)" }
-        carp("Bio::NEXUS::remove_block could not find a $blockname block");
+        if ( $title ) { 
+        	$blockname .= " ($title)" 
+        }
+        $logger->warn("could not find a $blockname block");
     }
 }
 
@@ -596,12 +637,15 @@ sub remove_block {
 
 sub get_block {
     my ( $self, $blocktype, $blockname ) = @_;
-    my @blocks = @{ $self->get_blocks($blocktype) };
 
-    for my $block (@blocks) {
-        if ( lc $block->get_type() eq lc $blocktype ) {
-            if ( !$blockname ) { return $block; }
-            elsif ( lc $block->get_title() eq lc $blockname ) { return $block; }
+    for my $block ( @{ $self->get_blocks($blocktype) } ) {
+        if ( $block->get_type() =~ m/$blocktype/i ) {
+            if ( !$blockname ) { 
+            	return $block; 
+            }
+            elsif ( $block->get_title() =~ m/$blockname/i ) { 
+            	return $block; 
+            }
         }
     }
     return undef;
@@ -621,18 +665,13 @@ sub get_blocks {
     my ( $self, $blocktype ) = @_;
 
     my @blocks;
-    my @blocks_and_comments = @{ $self->get_blocks_and_comments() };
 
-    for my $block_or_comment (@blocks_and_comments) {
+    for my $item ( @{ $self->get_blocks_and_comments() } ) {
 
         # if it's actually a block object, and not a block-level comment
-        if ( !_is_comment($block_or_comment) ) {
-            if (!$blocktype
-                || (   $blocktype
-                    && $block_or_comment->get_type() =~ /$blocktype/i )
-                )
-            {
-                push( @blocks, $block_or_comment );
+        if ( !_is_comment($item) ) {
+            if (!$blocktype || $item->get_type() =~ /$blocktype/i ) {
+                push @blocks, $item;
             }
         }
     }
@@ -715,9 +754,7 @@ sub get_otus {
     if ( my $treesblock = $self->get_block('trees') ) {
         return $treesblock->get_otus();
     }
-
-    croak
-        'Bio::NEXUS::get_otus called, but no appropriate block exists to get the otus from';
+    throw 'BadArgs' => 'no appropriate block exists to get the otus from';
 }
 
 =head2 rename_otus
@@ -734,12 +771,68 @@ sub rename_otus {
     my ( $self, $translation ) = @_;
     my $nexus = $self->clone();
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
-        {
+    	# XXX duck-typing is probably okay, no? -- RAV
+#        if ( $block->get_type()
+#            =~ /^(?:characters|taxa|sets|span|history|trees)$/i )
+        if ( $block->can('rename_otus') ) {
             $block->rename_otus($translation);
         }
     }
     return $nexus;
+}
+
+=head2 add_otu_clone
+
+ Name    : add_otu_clone
+ Usage   : $nexus_object->add_otu_clone($original_otu_name, $copy_otu_name);
+ Function: creates a copy of a specified otu inside this Bio::NEXUS object
+ Returns : n/a
+ Args    : $original_otu_name (string) - the name of the otu that will be cloned, $copy_otu_name (string) - the desired name for the new clone
+ Preconditions : $original_otu_name and $copy_otu_name are not equal, $original_otu_name is a valid otu name (existing otu)
+ 
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	$logger->warn( "not fully implemented!" );
+	
+	if (! defined $original_otu_name || ! defined $copy_otu_name) {
+		throw 'BadArgs' => 'missing argument!';
+	}
+
+	if ($original_otu_name eq $copy_otu_name) {
+		throw 'BadArgs' => 'otu names should be different';	
+	}
+	
+	if ( grep {$_ eq $copy_otu_name} @{$self->get_taxlabels} ) {
+		throw 'BadArgs' => "duplicate otu name [$copy_otu_name] already exists";		
+	}
+	$logger->debug("orig: $original_otu_name; copy: $copy_otu_name");
+	
+	# todo:
+	# a portion of the following code should be re-written as
+	# a stand-alone, utility method
+	my $contains_otu = "false";
+	foreach my $otu (@{ $self->get_taxlabels() }) {
+		$logger->debug("$otu");
+		if ($otu eq $original_otu_name) {
+			$contains_otu = "true";
+			last;
+		}
+	}
+
+	if ($contains_otu eq "true") {
+		# otu cloning happens here:
+		# - cycle through all blocks and call add_otu_clone() method on each block
+		foreach my $block ( @{ $self->get_blocks() } ) {
+			$logger->debug( "> Block: " . $block->get_type() );
+			$block->add_otu_clone($original_otu_name, $copy_otu_name);
+		}
+	}
+	else {
+		throw 'BadArgs' => "the specified otu [$original_otu_name] does not exist";
+	}
+	
 }
 
 =head2 select_blocks
@@ -754,7 +847,7 @@ sub rename_otus {
 
 sub select_blocks {
     my ( $self, $blocknames ) = @_;
-    my $nexus = Bio::NEXUS->new();
+    my $nexus = __PACKAGE__->new();
     for my $blockname (@$blocknames) {
         $nexus->add_block( $self->get_block($blockname) );
     }
@@ -795,8 +888,9 @@ sub select_otus {
     my $nexus = $self->clone();
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
-        {
+    	# XXX duck-typing probably okay, no? -- RAV
+        #if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        if ( $block->can('select_otus') ) {
             $block->select_otus($otunames);
         }
     }
@@ -855,8 +949,9 @@ sub select_tree {
 
 sub select_subtree {
     my ( $self, $nodename, $treename ) = @_;
-    $nodename
-        || croak 'ERROR: Need to specify an internal node name for subtree';
+    if ( not defined $nodename ) {
+    	throw 'BadArgs' => 'Need to specify an internal node name for subtree';
+    }
 
     my $nexus      = $self->clone();
     my $treesblock = $nexus->get_block("trees");
@@ -865,8 +960,9 @@ sub select_subtree {
     $nexus->get_block('taxa')->select_otus($OTUnames);
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
-        {
+        # XXX duck-typing probably okay, no? -- RAV
+        #if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        if ( $block->can('select_otus') ) {
             $block->select_otus($OTUnames);
         }
     }
@@ -886,8 +982,9 @@ sub select_subtree {
 
 sub exclude_subtree {
     my ( $self, $nodename, $treename ) = @_;
-    $nodename
-        || croak 'ERROR: Need to specify an internal node name for subtree';
+    if ( not defined $nodename ) {
+    	throw 'BadArgs' => 'Need to specify an internal node name for subtree';
+    }
 
     my $nexus      = $self->clone();
     my $treesblock = $nexus->get_block('trees');
@@ -895,8 +992,9 @@ sub exclude_subtree {
     my $OTUnames = $treesblock->get_taxlabels();
 
     for my $block ( @{ $nexus->get_blocks() } ) {
-        if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
-        {
+        # XXX duck-typing probably okay, no? --RAV
+        #if ( $block->get_type() =~ /^(?:characters|taxa|sets|span|history)$/i )
+        if ( $block->can('select_otus') ) {
             $block->select_otus($OTUnames);
         }
     }
@@ -929,7 +1027,7 @@ sub select_chars {
 #  to the default would be to leave the new column labels unset (i.e., ignore
 #  previous labels or numbers).
 #    print &Dumper($columns);exit;
-    for ( my $i = 0; $i <= $#$columns; $i++ ) {
+    for my $i ( 0 .. $#{ $columns } ) {
         $labels[$i] = $$columns[$i] + 1;
     }
 
@@ -963,7 +1061,7 @@ sub exclude_chars {
     print "$len\n";
     my @columns = ( -1, @{$columns}, $len );
     my @select = ();
-    for ( my $i = 0; $i < @columns - 1; $i++ ) {
+    for my $i ( 0 .. $#columns ) {
         for ( my $j = $columns[$i] + 1; $j < $columns[ $i + 1 ]; $j++ ) {
             push @select, $j;
         }
@@ -985,13 +1083,12 @@ sub exclude_chars {
 sub reroot {
     my ( $self, $outgroup, $root_position, $treename ) = @_;
     my $nexus = $self->clone();
+    my $trees = $nexus->get_block('trees');
     if ( defined $treename ) {
-        $nexus->get_block('trees')
-            ->reroot_tree( $outgroup, $root_position, $treename );
+        $trees->reroot_tree( $outgroup, $root_position, $treename );
     }
     else {
-        $nexus->get_block('trees')
-            ->reroot_all_trees( $outgroup, $root_position );
+        $trees->reroot_all_trees( $outgroup, $root_position );
     }
     return $nexus;
 }
@@ -1048,12 +1145,14 @@ sub write {
     my ( $self, $filename, $verbose ) = @_;
     my $fh;
 
-    if ( $filename eq "-" || $filename eq \*STDOUT ) {
-        $fh = \*STDOUT;
+    if ( ref($filename) eq "GLOB" ) { 
+    	$fh = $filename; 
+    }
+    elsif ( $filename eq "-" || $filename eq \*STDOUT ) { 
+    	$fh = \*STDOUT; 
     }
     else {
-        open( $fh, ">$filename" )
-            || croak "Could not open $filename for writing\n";
+        open( $fh, ">$filename" ) || throw 'FileError' => $!;
     }
 
     print $fh "#NEXUS\n\n";
@@ -1089,7 +1188,9 @@ sub write {
         $block_or_comment->_write($fh);
         print $fh "\n";
     }
-    close($fh);
+    
+    # if $fh is STDOUT, don't close it!
+    close($fh) unless ($fh == \*STDOUT);
 }
 
 =head2 set_taxablock
@@ -1130,9 +1231,8 @@ sub set_taxablock {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -1141,13 +1241,12 @@ sub AUTOLOAD {
         );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnknownMethod' => "Unknown method $AUTOLOAD called";
     }
-    return;
 }
 
 1;

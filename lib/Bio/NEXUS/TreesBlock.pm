@@ -2,7 +2,7 @@
 # TreesBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Eugene Melamud, Weigang Qiu, Peter Yang, Thomas Hladish
-# $Id: TreesBlock.pm,v 1.55 2006/09/11 23:15:35 thladish Exp $
+# $Id: TreesBlock.pm,v 1.63 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are all greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.55 $
+$Revision: 1.63 $
 
 =head1 METHODS
 
@@ -43,17 +43,35 @@ $Revision: 1.55 $
 package Bio::NEXUS::TreesBlock;
 
 use strict;
-use Carp;
-use Data::Dumper;
+#use Carp; # XXX this is not used, might as well not import it!
+#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
-use Bio::NEXUS::Node;
-use Bio::NEXUS::Tree;
+#use Bio::NEXUS::Node; # XXX loaded dynamically
+#use Bio::NEXUS::Tree; # XXX loaded dynamically
 use Bio::NEXUS::Block;
+use Bio::NEXUS::Util::Exceptions 'throw';
+use Bio::NEXUS::Util::Logger;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+my $logger = Bio::NEXUS::Util::Logger->new;
+
+my %factories = (
+	'treetype' => __PACKAGE__->_load_module('Bio::NEXUS::Tree'),
+	'nodetype' => __PACKAGE__->_load_module('Bio::NEXUS::Node'),
+);
+
+sub import {
+	my $class = shift;
+	my %args;
+	if ( @_ ) {
+		%args = @_;
+	}	
+	for ( qw(treetype nodetype) ) {
+		$factories{$_} = $class->_load_module( $args{$_} ) if $args{$_};
+	}
+}
 
 =head2 new
 
@@ -67,11 +85,17 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type, };
+    $logger->info("constructor called for $class");
+    ( $type ||= lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i;
+    my $self = { 
+    	'type'     => $type,
+    	'treetype' => $factories{'treetype'},
+    	'nodetype' => $factories{'nodetype'},
+    };
     bless $self, $class;
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    if ( defined $commands and @{ $commands } ) {
+    	$self->_parse_block( $commands, $verbose );
+    }
     return $self;
 }
 
@@ -91,7 +115,7 @@ sub _parse_translate {
     my ( $self, $buffer ) = @_;
     $buffer =~ s/,//g;
     my $translate = { @{ _parse_nexus_words($buffer) } };
-
+    $self->{'translation'} = $translate;
     return $translate;
 }
 
@@ -118,12 +142,11 @@ sub _parse_translate {
 sub _parse_tree {
     my ( $self, $buffer, $verbose ) = @_;
 
-    #    print "$buffer\n";exit;
-    carp("        Entering tree...\n") if $verbose;
-    my $tree       = new Bio::NEXUS::Tree();
+    $logger->info("Entering tree");;
+    my $tree       = $self->treetype->new();
     my @tree_words = @{ _parse_nexus_words($buffer) };
 
-# If there's an asterisk, set the 'default' attribute, then get rid of the asterisk
+    # If there's an asterisk, set the 'default' attribute, then get rid of the asterisk
     if ( $tree_words[0] eq '*' ) {
         shift @tree_words;
         $tree->set_as_default();
@@ -135,27 +158,68 @@ sub _parse_tree {
 
     # mark the tree as unrooted if it's prepended with [&U]
     if ( lc $tree_words[0] eq lc '[&U]' ) {
+        $logger->info("setting tree as unrooted");
         $tree->set_as_unrooted();
         shift @tree_words;
     }
 
     # if it's prepended with the rooted flag, nothing needs to change
     elsif ( lc $tree_words[0] eq lc '[&R]' ) {
+        $logger->info("tree is rooted");
         shift @tree_words;
     }
 
+	$logger->info("going to parse newick string");
     $tree->_parse_newick( \@tree_words );
+    $logger->info($tree->as_string);
 
     my $nodes = $tree->get_nodes();
     for my $node (@$nodes) {
-        if ( $node->is_otu() ) {    #check for translation
+        if ( $node->is_otu() ) {    #check for translation            
             $name = $node->get_name();
+            $logger->info("node is terminal, setting translation '$name'");
             $node->set_name( $self->translate($name) );
         }
     }
 
     $self->add_tree($tree);
     return $tree;
+}
+
+=head2 treetype
+
+ Title   : treetype
+ Usage   : $block->treetype('Bio::NEXUS::Tree');
+ Function: sets a tree type class to instantiate on parse
+ Returns : none
+ Args    : a tree class
+
+=cut
+
+sub treetype {
+	my $self = shift;
+	if ( @_ ) {
+		$self->{'treetype'} = $self->_load_module(shift);
+	}
+	return $self->{'treetype'} || $self->_load_module('Bio::NEXUS::Tree');
+}
+
+=head2 nodetype
+
+ Title   : nodetype
+ Usage   : $block->nodetype('Bio::NEXUS::Node');
+ Function: sets a node type class to instantiate on parse
+ Returns : none
+ Args    : a node class
+
+=cut
+
+sub nodetype {
+	my $self = shift;
+	if ( @_ ) {
+		$self->{'nodetype'} = $self->_load_module(shift);
+	}
+	return $self->{'nodetype'} || $self->_load_module('Bio::NEXUS::Node');
 }
 
 =head2 clone
@@ -312,9 +376,9 @@ sub translate {
 
 sub reroot_tree {
     my ( $self, $outgroup, $root_position, $treename ) = @_;
-    croak
-        "ERROR: Need to specify a tree name and outgroup name for rerooting.\n"
-        unless ( ( defined $treename ) and ( defined $outgroup ) );
+    if ( not defined $treename and not defined $outgroup ) {
+    	throw 'BadArgs' => 'Need to specify a tree name and outgroup name for rerooting';
+    }
     my $tree = $self->get_tree($treename);
     my @rerooted_trees;
     foreach my $tree ( @{ $self->get_trees() } ) {
@@ -397,6 +461,63 @@ sub select_otus {
     return $self;
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::TreesBlock::add_otu_clone() method not fully implemented\n";
+	
+	# . iterate through all trees:
+	foreach my $tree ( @{ $self->{'blockTrees'} }) {
+		# . find the original node
+		# if not found, something must be done !
+		my $original_node = $tree->find($original_otu_name);
+		print "TreesBlock::add_otu_clone(): original otu [$original_otu_name] was not found.\n" if (! defined $original_node);
+		# . clone the node
+		my $cloned_node = $original_node->clone();
+		# . rename the new node
+		$cloned_node->set_name($copy_otu_name);
+		
+		# find the parent of the original node, add to it a new
+		# child that will be parent of both original and
+		# clone nodes. Remove the original node from the 
+		# list of children of its original parent
+		my $original_parent = $original_node->get_parent();
+		
+		foreach my $child ( @{ $original_parent->get_children() }) {
+			# print "Child name: ", $child->get_name(), "\n";
+			if ($child->get_name() eq $original_otu_name) {
+				my $new_parent = $self->nodetype->new();
+
+				$new_parent->set_length($original_node->get_length());
+						
+				$cloned_node->set_length(0);
+				$original_node->set_length(0);
+				
+				$new_parent->add_child($cloned_node);
+				$cloned_node->set_parent_node($new_parent);
+				$new_parent->add_child($original_node);
+				$original_node->set_parent_node($new_parent);
+
+				$new_parent->set_parent_node($original_parent);
+				$child = $new_parent;
+				last;
+			}
+		}
+	}
+	
+	# todo:
+	# add the clone to {'translation'} if the original is also there
+}
+
 =head2 select_tree
 
  Name    : select_tree
@@ -432,12 +553,13 @@ sub select_tree {
 
 sub select_subtree {
     my ( $self, $nodename, $treename ) = @_;
-    $nodename
-        or croak "ERROR: Need to specify an internal node name for subtree\n";
-
+    if ( not $nodename ) {
+    	throw 'BadArgs' => 'Need to specify an internal node name for subtree';
+    }
     my $tree = $self->get_tree($treename);
-    $tree or croak "ERROR: Tree $treename not found.\n";
-
+    if ( not $tree ) {
+    	throw 'BadArgs' => "Tree $treename not found.";
+    }
     $tree = $tree->select_subtree($nodename);
     $self->set_trees();
     $self->add_tree($tree);
@@ -458,11 +580,14 @@ sub select_subtree {
 
 sub exclude_subtree {
     my ( $self, $nodename, $treename ) = @_;
-    $nodename
-        or croak "ERROR: Need to specify an internal node name for subtree\n";
+    if ( not $nodename ) {
+    	throw 'BadArgs' => 'Need to specify an internal node name for subtree';
+    }
 
     my $tree = $self->get_tree($treename);
-    $tree or croak "ERROR: Tree $treename not found.\n";
+    if ( not $tree ) {
+    	throw 'BadArgs' => "Tree $treename not found.";
+    }
 
     $tree = $tree->exclude_subtree($nodename);
     $self->set_trees();
@@ -494,6 +619,23 @@ sub equals {
     @trees2 = sort { $a->get_name() cmp $b->get_name() } @trees2;
     for ( my $i = 0; $i < @trees1; $i++ ) {
         if ( !$trees1[$i]->equals( $trees2[$i] ) ) { return 0; }
+    }
+    return 1;
+}
+
+# method under testing
+sub _equals_test {
+    my ( $self, $block ) = @_;
+    if ( !Bio::NEXUS::Block::equals( $self, $block ) ) { return 0; }
+
+    #    if ($self->get_type() ne $block->get_type()) {return 0;}
+    my @trees1 = @{ $self->get_trees() };
+    my @trees2 = @{ $block->get_trees() };
+    if ( @trees1 != @trees2 ) { return 0; }
+    @trees1 = sort { $a->get_name() cmp $b->get_name() } @trees1;
+    @trees2 = sort { $a->get_name() cmp $b->get_name() } @trees2;
+    for ( my $i = 0; $i < @trees1; $i++ ) {
+        if ( !$trees1[$i]->_equals_test( $trees2[$i] ) ) { return 0; }
     }
     return 1;
 }
@@ -542,7 +684,8 @@ sub _write_trees {
         if ( $tree->is_default() ) {
             print $fh "* ";
         }
-        print $fh $tree->get_name(), " = ";
+        # tree name has to be protected if it contains quotations
+        print $fh _nexus_formatted($tree->get_name()), " = ";
         if ( !$tree->is_rooted() ) {
             print $fh "[&U] ";
         }
@@ -552,9 +695,8 @@ sub _write_trees {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::TreesBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -564,11 +706,11 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        throw 'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called";
     }
     return;
 }

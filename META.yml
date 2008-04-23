@@ -1,10 +1,14 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Bio-NEXUS
-version:      0.67
-version_from: lib/Bio/NEXUS.pm
-installdirs:  site
-requires:
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+--- #YAML:1.0
+name:                Bio-NEXUS
+version:             0.69
+abstract:            Bio::NEXUS - A NEXUS Application Programming Interface in Perl
+license:             ~
+author:              
+    - Hladish, Liang, Qiu, Yang, Gopalan, & Stoltzfus (arlin.stoltzfus@nist.gov)
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Test::More:                    0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

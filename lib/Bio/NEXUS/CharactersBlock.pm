@@ -1,9 +1,9 @@
 #######################################################################
 # CharactersBlock.pm
 #######################################################################
-# Author: Chengzhi Liang, Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: CharactersBlock.pm,v 1.65 2006/09/11 23:09:28 thladish Exp $
-
+# 
+# $Id: CharactersBlock.pm,v 1.81 2008/04/14 16:55:01 astoltzfus Exp $
+#
 #################### START POD DOCUMENTATION ##########################
 
 =head1 NAME
@@ -32,25 +32,27 @@ All feedbacks (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.65 $
+$Revision: 1.81 $
 
 =head1 METHODS
 
 =cut
 
 package Bio::NEXUS::CharactersBlock;
-
 use strict;
-use Data::Dumper;
-use Carp;
+# use Data::Dumper; # used for debugging only 
+# use Carp; # for debugging only 
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::TaxUnitSet;
-use Bio::NEXUS::MatrixBlock;
+use Bio::NEXUS::Matrix;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions 'throw';
+use vars qw(@ISA $VERSION $AUTOLOAD);
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use vars qw(@ISA);
-@ISA = qw(Bio::NEXUS::MatrixBlock);
+@ISA = qw(Bio::NEXUS::Matrix);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -64,13 +66,18 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose, $taxa ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type };
+    if ( not $type) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type 
+    };
     bless $self, $class;
     $self->set_taxlabels($taxa);
-    $self->{'otuset'} = new Bio::NEXUS::TaxUnitSet();
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    $self->{'otuset'} = Bio::NEXUS::TaxUnitSet->new();
+    if ( ( defined $commands ) and @$commands ) {
+    	$self->_parse_block( $commands, $verbose )
+    }
 
     return $self;
 }
@@ -78,7 +85,7 @@ sub new {
 sub _post_processing {
     my ($self) = @_;
 
-    # We prefer using the more versatile/experessive character-state labels,
+    # We prefer using the more versatile/expressive character-state labels,
     # rather than state labels
     if ( $self->get_statelabels() ) {
         $self->add_states_to_charstates( $self->get_statelabels() );
@@ -101,7 +108,7 @@ sub _post_processing {
  Title   : _parse_charstatelabels
  Usage   : $self->_parse_charstatelabels($buffer);
  Function: Parses the buffer containing character labels, stores it
- Returns : array of charstates
+ Returns : none
  Args    : buffer (string)
  Method  : parse a charstatelabels command in Characters Block and store in hash
 
@@ -109,20 +116,53 @@ sub _post_processing {
 
 =cut
 
+# NOTE: format of charstatelabel is comma-separated list of elements, where each element
+# has the form <char_number> <opt:char_label> / <opt:statelabel> <opt:more_statelabels> 
+
+# NOTE: the parse method below is not elegant, but its rational and so far its robust to tests
+
 sub _parse_charstatelabels {
-    my ( $self, $labels ) = @_;
-    my @charstates;
-    my @charlabels;
-    for my $line ( split /,/, $labels ) {
-        my ( $label, $states ) = split /\s*\/\s*/, $line;
-        $label =~ s/\s*(.*)/$1/;
-        my ( $id, $charlabel ) = split /\s+/, $label;
-        my @states = split /\s+/, $states if $states;
-        push @charstates, $self->create_charstates( $id, $charlabel, \@states );
-        push @charlabels, $charlabel;
-    }
-    $self->set_charlabels( \@charlabels );
-    return \@charstates;
+    my ( $self, $buffer ) = @_;
+    my $command_tokens = _parse_nexus_words($buffer);
+    my @out; 
+#   print "command_tokens: ", Dumper @$command_tokens; 
+
+    my ($this_token, $this_element_token ); 
+    my ( @this_element_tokens, @this_half_tokens ); 
+    my ( $char_id, $char_label ); 
+	while ( $this_token = shift( @$command_tokens  ) ) { 
+		if ( $this_token eq ',' || $#$command_tokens == -1  ) {  
+			if ( $#$command_tokens == -1 ) {
+				push ( @this_element_tokens, $this_token ); 
+			}
+#			print "processing this element . . . ", Dumper @this_element_tokens; 
+			# process this_element_tokens to yield id, label, and state labels
+			while ( $this_element_token = shift( @this_element_tokens ) ) { 
+				if ( $this_element_token eq '/' ) { 
+#					print "processing char half. . . ", Dumper @this_half_tokens; 
+					$char_id = shift(@this_half_tokens); 
+					# label may be empty, but thats ok
+					$char_label = shift(@this_half_tokens); 
+#					print "char_id = $char_id, char_label = $char_label\n"; 
+				}
+				else { 
+					push( @this_half_tokens, $this_element_token ); 
+				}
+			}
+			push @out, $self->create_charstates( $char_id, $char_label, \@this_half_tokens );
+			@this_half_tokens = (); 
+#			print "latest character: ", Dumper \$out[$#out]; 
+			$char_id = undef;
+			$char_label = undef; 
+		}
+		else { 
+			push( @this_element_tokens, $this_token ); 
+		}	
+	}
+	$self->get_otuset->set_charstatelabels( \@out );
+#	print "\nout: ", Dumper @out; 
+
+	return;
 }
 
 =begin comment
@@ -200,9 +240,11 @@ sub add_states_to_charstates {
     my ( $self, $states ) = @_;
     my $newstates;
     my $charstates = $self->get_charstatelabels();
-    if ( !@$charstates ) { $self->set_charstatelabels($states); return; }
-STATE:
-    for my $state (@$states) {
+    if ( !@$charstates ) { 
+    	$self->set_charstatelabels($states); 
+    	return; 
+    }
+	STATE: for my $state (@$states) {
         for my $charstate (@$charstates) {
             if ( $state->{'id'} == $charstate->{'id'} ) {
                 $charstate->{'states'} = $state->{'states'};
@@ -218,7 +260,7 @@ STATE:
  Title   : create_charstates
  Usage   : my $char_state_hash = $self->create_charstates($id,$label,$states);
  Function: Converts the input id, label, states to an hash ref for processing.
- Returns : Has reference with (id, charlabel,states as keys)
+ Returns : Hash reference with (id, charlabel,states as keys)
  Args    : id, label, states
 
 =cut
@@ -229,7 +271,12 @@ sub create_charstates {
     for ( my $i = 0; $i < @{ $states || [] }; $i++ ) {
         $states{$i} = $states->[$i];
     }
-    return { id => $id, charlabel => $label, states => \%states };
+    return { 
+    	'id'        => $id, 
+    	'charlabel' => $label, 
+    	'states'    => \%states 
+    
+    };
 }
 
 =head2 find_taxon
@@ -268,6 +315,38 @@ sub set_otuset {
     return;
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::CharactersBlock::add_otu_clone() method not fully implemented\n";
+	
+	if ( $self->find_taxon($copy_otu_name) ) {
+		throw 'ObjectMismatch' => "OTU with that name [$copy_otu_name] already exists";
+	}
+	else {
+		$self->add_taxlabel($copy_otu_name);                
+        my @otu_set = @{ $self->{'otuset'}->{'otus'} };
+        for my $otu (@otu_set) {
+			if (defined $otu) {
+				if ( $otu->get_name() eq $original_otu_name ) {                            
+                	my $otu_clone = $otu->clone();
+                    $otu_clone->set_name($copy_otu_name);
+                    $self->{'otuset'}->add_otu($otu_clone);
+				}
+            }
+		}
+	}	
+}
+
 =head2 set_charstatelabels
 
  Title   : set_charstatelabels
@@ -294,10 +373,7 @@ sub set_charstatelabels {
 
 =cut
 
-sub get_charstatelabels {
-    my ($self) = @_;
-    return $self->get_otuset->get_charstatelabels();
-}
+sub get_charstatelabels { shift->get_otuset->get_charstatelabels() }
 
 =head2 set_charlabels
 
@@ -324,10 +400,7 @@ sub set_charlabels {
 
 =cut
 
-sub get_charlabels {
-    my ($self) = @_;
-    return $self->get_otuset()->get_charlabels();
-}
+sub get_charlabels { shift->get_otuset()->get_charlabels() }
 
 =head2 set_statelabels
 
@@ -354,10 +427,7 @@ sub set_statelabels {
 
 =cut
 
-sub get_statelabels {
-    my ($self) = @_;
-    return $self->get_otuset()->get_statelabels();
-}
+sub get_statelabels { shift->get_otuset()->get_statelabels() }
 
 =head2 get_nchar
 
@@ -370,10 +440,13 @@ sub get_statelabels {
 =cut
 
 sub get_nchar {
-    my $self   = shift;
-    my $nchar  = $self->get_dimensions('nchar');
-    my $otuset = $self->get_otuset();
-    $nchar ||= $otuset ? $otuset->get_nchar() : undef;
+    my $self  = shift;
+    my $nchar = $self->get_dimensions('nchar');
+    if ( not defined $nchar ) {
+        my $otuset = $self->get_otuset();
+        $nchar = $otuset ? $otuset->get_nchar() : undef;
+        $self->set_nchar($nchar);
+    }
     return $nchar;
 }
 
@@ -406,11 +479,20 @@ sub _parse_matrix {
     my $missing_symbol = $format{'missing'} || q{};
     my $gap_symbol     = $format{'gap'}     || q{};
 
-    if ( $format{'datatype'} =~ /^/ ) { }
+    # statesformat is the stored value (if one exists), otherwise it's
+    # the default value ('individuals' for continuous data, 'statespresent'
+    # for others).
+    my $statesformat =
+          $format{'statesformat'} ? $format{'statesformat'}
+        : $format{'datatype'} eq 'continuous' ? 'individuals'
+        : 'statespresent';
+    my $expect_freq =
+        ( $statesformat eq 'count' || $statesformat eq 'frequency' ) ? 1 : 0;
 
     # '+' and '-' are not included as punctuation because they are allowed as
-    # state symbols in a matrix
-    my $punctuation_regex = qr/[\/\\,;:=*"`<>]/;
+    # state symbols in a matrix; colons are used to separate states from their
+    # frequencies in polymorphisms (e.g. "(A:0.9 E:0.04 N:0.06)" )
+    my $punctuation_regex = qr/[\/\\,;=*"`<>]/;
 
     my ( @lines, %taxa );
 
@@ -428,7 +510,11 @@ sub _parse_matrix {
         my @words       = @{ _parse_nexus_words($line) };
         my $name        = q{};
         my $in_grouping = 0;
-        my $i           = 0;
+
+        #        my $group_position = 0;
+        my $saw_colon  = 0;
+        my $last_state = q{};
+        my $i          = 0;
 
     WORD:
         for my $word (@words) {
@@ -448,7 +534,7 @@ sub _parse_matrix {
             if ( $name eq q{} ) {
                 if ($expect_labels) {
                     $name = $word;
-                    $taxa{$name} = [];
+                    $taxa{$name} = [] unless exists $taxa{$name};
                     next WORD;
                 }
                 else {
@@ -469,23 +555,46 @@ sub _parse_matrix {
             }
             elsif ( $word eq '(' ) {
                 push @{ $taxa{$name} },
-                    { 'type' => 'polymorphism', 'states' => [] };
+                    { 'type' => 'polymorphism', 'states' => undef };
                 $in_grouping = 1;
             }
             elsif ( $word eq '{' ) {
                 push @{ $taxa{$name} },
-                    { 'type' => 'uncertainty', 'states' => [] };
+                    { 'type' => 'uncertainty', 'states' => undef };
                 $in_grouping = 1;
             }
             elsif ( $word eq ')' || $word eq '}' ) {
                 $in_grouping = 0;
+
+                #                $group_position = 0;
+            }
+            elsif ( $word eq ':' ) {
+                $saw_colon = 1 if ( $in_grouping && $expect_freq );
             }
             else {
-                my ( $right_arrayref, @right_seq );
-                $right_arrayref =
-                    $in_grouping ? $taxa{$name}->[-1]{'states'} : $taxa{$name};
-                @right_seq = $expect_tokens ? ($word) : split //, $word;
-                push @$right_arrayref, @right_seq;
+                if ($in_grouping) {
+                    if ( !$saw_colon ) {
+                        if ($expect_freq) {
+                            $taxa{$name}->[-1]{'states'}{$word} = undef;
+                            $last_state = $word;
+                        }
+                        else {
+
+#                            $taxa{$name}->[-1]{'states'}{$group_position++} = $word;
+                            push @{ $taxa{$name}->[-1]{'states'} }, $word;
+                        }
+                    }
+                    else {
+                        $taxa{$name}->[-1]{'states'}{$last_state} = $word
+                            if $expect_freq;
+                        $saw_colon  = 0;
+                        $last_state = q{};
+                    }
+                }
+                else {
+                    my @seq = $expect_tokens ? ($word) : split //, $word;
+                    push @{ $taxa{$name} }, @seq;
+                }
             }
         }
     }
@@ -496,12 +605,15 @@ sub _parse_matrix {
 
     while ( my ( $name, $seq ) = each %taxa ) {
         unless ( $self->find_taxon($name) ) {
-            croak "Characters$title block error...\n",
-                "Unknown taxon '$name\' encountered in matrix.  ",
-                "Common causes include: Misspelled names, ",
-                "sequence lengths that don't match the specified number of characters (nchar), ",
-                "including a taxon that is not listed in the Taxa Block, ",
-                "and not quoting names with whitespace or punctuation: ";
+            $title ||= '';
+            Bio::NEXUS::Util::Exceptions::BadArgs->throw(
+            	'error' => "Characters$title block error...\n"
+                		. "Unknown taxon '$name\' encountered in matrix.  "
+                		. "Common causes include: Misspelled names, "
+                		. "sequence lengths that don't match the specified number of characters (nchar), "
+                		. "including a taxon that is not listed in the Taxa Block, "
+                		. "and not quoting names with whitespace or punctuation"
+            );
         }
         push @otus, Bio::NEXUS::TaxUnit->new( $name, $seq );
 
@@ -510,7 +622,6 @@ sub _parse_matrix {
     my $otuset = $self->get_otuset();
     $otuset->set_otus( \@otus );
     $self->set_taxlabels( $otuset->get_otu_names() );
-
     return \@otus;
 }
 
@@ -526,7 +637,9 @@ sub _parse_matrix {
 
 sub select_columns {
     my ( $self, $columns ) = @_;
-    $self->get_otuset()->select_columns($columns);
+    my $otuset = $self->get_otuset();
+    $otuset->select_columns($columns);
+    $self->set_nchar( $otuset->get_nchar );
     return $self;
 }
 
@@ -557,7 +670,7 @@ sub rename_otus {
 
 sub equals {
     my ( $self, $block ) = @_;
-    if ( !Bio::NEXUS::Block::equals( $self, $block ) ) { return 0; }
+    if ( ! $self->SUPER::equals($block) ) { return 0; }
     return $self->get_otuset()->equals( $block->get_otuset() );
 }
 
@@ -656,9 +769,8 @@ sub _write_matrix {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::CharactersBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -668,13 +780,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

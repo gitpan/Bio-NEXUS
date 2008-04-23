@@ -2,7 +2,7 @@
 # SpanBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Thomas Hladish
-# $Id: SpanBlock.pm,v 1.29 2006/09/11 23:15:35 thladish Exp $
+# $Id: SpanBlock.pm,v 1.33 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -38,15 +38,17 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 package Bio::NEXUS::SpanBlock;
 
 use strict;
-use Data::Dumper;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
-use Carp;
+#use Carp;# XXX this is not used, might as well not import it!
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -325,6 +327,31 @@ sub rename_otus {
     }
 }
 
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	#print "Warning: Bio::NEXUS::SpanBlock::add_otu_clone() method not fully implemented\n";
+	
+	foreach my $set ( @{ $self->{'add'}{'taxlabels'}{'data'} } ) {
+		foreach my $item ( @{ $set } ) {
+			if ($item eq $original_otu_name) {
+				#print "found the otu in some set\n";
+				unshift (@$set, $copy_otu_name);
+				last;
+			}
+		}
+	}
+}
+
 =head2 equals
 
  Name    : equals
@@ -421,9 +448,8 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::SpanBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -433,11 +459,13 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
     return;
 }

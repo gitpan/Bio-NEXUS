@@ -2,7 +2,7 @@
 # DistancesBlock.pm
 #################################################################
 # Author: Thomas Hladish
-# $Id: DistancesBlock.pm,v 1.14 2006/09/11 23:15:35 thladish Exp $
+# $Id: DistancesBlock.pm,v 1.18 2007/09/21 23:09:09 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -29,7 +29,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.14 $
+$Revision: 1.18 $
 
 =head1 METHODS
 
@@ -38,15 +38,17 @@ $Revision: 1.14 $
 package Bio::NEXUS::DistancesBlock;
 
 use strict;
-use Data::Dumper;
-use Carp;
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
-use Bio::NEXUS::MatrixBlock;
+use Bio::NEXUS::Matrix;
+use Bio::NEXUS::Util::Logger;
+use Bio::NEXUS::Util::Exceptions;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
-@ISA = qw(Bio::NEXUS::MatrixBlock);
+@ISA = qw(Bio::NEXUS::Matrix);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -60,12 +62,17 @@ use vars qw(@ISA);
 
 sub new {
     my ( $class, $type, $commands, $verbose, $taxa ) = @_;
-    unless ($type) { ( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; }
-    my $self = { type => $type };
+    if ( not $type) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type 
+    };
     bless $self, $class;
     $self->set_taxlabels($taxa);
-    $self->_parse_block( $commands, $verbose )
-        if ( ( defined $commands ) and @$commands );
+    if ( ( defined $commands ) and @$commands ) {
+    	$self->_parse_block( $commands, $verbose )
+    }
     return $self;
 }
 
@@ -94,12 +101,18 @@ sub _parse_matrix {
     my $interleave = defined $format{'interleave'} ? $format{'interleave'} : 0;
 
     if ( $triangle =~ /^both$/i && !$diagonal ) {
-        croak
-            "The Distances Block contains a matrix that has both upper and lower halves, but does not have diagonal values.  This is prohibited by the NEXUS standard";
+        Bio::NEXUS::Util::Exceptions::BadFormat->throw(
+        	'error' => "The Distances Block contains a matrix that has\n" 
+        			. "both upper and lower halves, but does not have\n"
+        			. "diagonal values.\nThis is prohibited by the NEXUS standard"
+        );
     }
     if ( $interleave && !$labels ) {
-        croak
-            "This matrix is interleaved and without row labels ('unlabeled').  Please label rows or use a non-interleaved format, to allow for safer parsing";
+        Bio::NEXUS::Util::Exceptions::BadFormat->throw(
+        	'error' => "This matrix is interleaved and without row labels\n" 
+        			. "('unlabeled').  Please label rows or use a non-\n"
+        			. "interleaved format, to allow for safer parsing"
+        );
     }
 
     my @rows = split /\n+/, $buffer;
@@ -196,8 +209,10 @@ sub _parse_matrix {
             }
         }
         else {
-            croak
-                "Unknown value '$triangle' for Format:Triangle in the DistancesBlock.  Expecting 'upper', 'lower', or 'both'.";
+            Bio::NEXUS::Util::Exceptions::BadFormat->throw(
+            	'error' => "Unknown value '$triangle' for Format:Triangle\n"
+            			. "in the DistancesBlock.  Expecting 'upper', 'lower', or 'both'."
+            );
         }
     }
 
@@ -305,8 +320,11 @@ sub _write_matrix {
     my $interleave = defined $format{'interleave'} ? $format{'interleave'} : 0;
 
     if ( $triangle =~ /^both$/i && !$diagonal ) {
-        croak
-            "The Distances Block contains a matrix that has both upper and lower halves, but does not have diagonal values.  This is prohibited by the NEXUS standard";
+        Bio::NEXUS::Util::Exceptions::BadFormat->throw(
+        	'error' => "The Distances Block contains a matrix that has\n"
+        			. "both upper and lower halves, but does not have\n"
+        			. "diagonal values.  This is prohibited by the NEXUS standard"
+        );
     }
 
     print $fh "\tMATRIX\n";
@@ -345,9 +363,8 @@ sub _write_matrix {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::DistancesBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -357,13 +374,14 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
-    return;
 }
 
 1;

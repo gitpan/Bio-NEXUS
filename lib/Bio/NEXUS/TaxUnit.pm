@@ -2,7 +2,7 @@
 # TaxUnit.pm
 ########################################################################
 # Author: Chengzhi Liang, Thomas Hladish
-# $Id: TaxUnit.pm,v 1.17 2006/09/05 16:48:17 vivek Exp $
+# $Id: TaxUnit.pm,v 1.23 2007/09/24 04:52:14 rvos Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -31,7 +31,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.17 $
+$Revision: 1.23 $
 
 =head1 METHODS
 
@@ -41,10 +41,17 @@ package Bio::NEXUS::TaxUnit;
 
 use strict;
 use Bio::NEXUS::Functions;
-use Carp;
-use Data::Dumper;
+#use Carp;# XXX this is not used, might as well not import it!
+#use Data::Dumper; # XXX this is not used, might as well not import it!
+use Bio::NEXUS::Util::Exceptions 'throw';
+use Bio::NEXUS::Util::Logger;
+# Note: This script uses Clone::PP to clone the
+# nested perl data structures
+#use Clone::PP; # XXX changed this to a lazy loading 'require' where it's needed, in the clone function
+use vars qw($VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -77,6 +84,14 @@ sub clone {
     my ($self) = @_;
     my $class = ref($self);
     my $newtu = bless( { %{$self} }, $class );
+    # clone the sequence using Clone::PP
+    if (defined $self->{'seq'}) {
+	    eval { require Clone::PP };
+	    if ( $@ ) {
+	    	throw 'ExtensionError' => "Can't clone, no Clone::PP $@";
+	    }
+	    $newtu->{'seq'} = Clone::PP::clone($self->{'seq'});
+	}
     return $newtu;
 }
 
@@ -156,16 +171,32 @@ sub get_seq_string {
     my @seq;
     for my $token ( @{ $self->get_seq } ) {
         if ( ref $token eq 'HASH' ) {
-            my @states = @{ $token->{'states'} };
-            if ( $token->{'type'} eq 'uncertainty' ) {
-                push @seq, '{', @states, '}';
+            my $token_type = $token->{'type'};
+            if ( ref $token->{'states'} eq 'ARRAY' ) {
+                my @states = @{ $token->{'states'} };
+                if ( $token_type eq 'uncertainty' ) {
+                    push @seq, '{', @states, '}';
+                }
+                elsif ( $token_type eq 'polymorphism' ) {
+                    push @seq, '(', @states, ')';
+                }
+                else {
+                	throw 'BadFormat' => "Unknown token type encountered: only 'uncertainty' and 'polymorphism' are valid";
+                }
             }
-            elsif ( $token->{'type'} eq 'polymorphism' ) {
-                push @seq, '(', @states, ')';
-            }
-            else {
-                croak
-                    "Unknown token type encountered: only 'uncertainty' and 'polymorphism' are valid";
+            elsif ( ref $token->{'states'} eq 'HASH' ) {
+                my %states = %{ $token->{'states'} };
+                my @polymorphism
+                    ;  # will contain something like ('A:0.2', 'G:0.4', 'P:0.4')
+                if ( $token_type eq 'polymorphism' ) {
+                    while ( my ( $key, $val ) = each %states ) {
+                        push @polymorphism, "$key:$val";
+                    }
+                    push @seq, join q{ }, '(', @polymorphism, ')';
+                }
+                else {
+                	throw 'BadFormat' => "Unknown token type <$token_type> encountered: only 'polymorphism' is valid when explicit frequencies are included";
+                }
             }
         }
         else {
@@ -177,9 +208,8 @@ sub get_seq_string {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::TaxUnit::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -189,13 +219,12 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnknownMethod' => "Unknown method $AUTOLOAD called";
     }
-    return;
 }
 
 1;

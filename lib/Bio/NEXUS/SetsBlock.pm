@@ -2,7 +2,7 @@
 # SetsBlock.pm
 ######################################################
 # Author: Thomas Hladish
-# $Id: SetsBlock.pm,v 1.26 2006/09/11 23:15:35 thladish Exp $
+# $Id: SetsBlock.pm,v 1.32 2007/09/21 23:09:09 rvos Exp $
 #################### START POD DOCUMENTATION ##################
 
 =head1 NAME
@@ -27,7 +27,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.26 $
+$Revision: 1.32 $
 
 =head1 METHODS
 
@@ -36,15 +36,17 @@ $Revision: 1.26 $
 package Bio::NEXUS::SetsBlock;
 
 use strict;
-use Carp;
-use Data::Dumper;
+#use Carp; # XXX this is not used, might as well not import it!
+#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
+use Bio::NEXUS::Util::Exceptions;
+use Bio::NEXUS::Util::Logger;
+use vars qw(@ISA $VERSION $AUTOLOAD);
+use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
-use Bio::NEXUS; our $VERSION = $Bio::NEXUS::VERSION;
-
-use vars qw(@ISA);
 @ISA = qw(Bio::NEXUS::Block);
+my $logger = Bio::NEXUS::Util::Logger->new();
 
 =head2 new
 
@@ -81,7 +83,9 @@ sub _parse_taxset {
 
     my $taxsets;
     $taxsets->{$setname} = \@taxa;
-    $self->set_taxsets($taxsets);
+
+    #$self->set_taxsets($taxsets);
+    $self->add_taxsets( { $setname, \@taxa } );
 
     return $taxsets;
 }
@@ -181,7 +185,9 @@ sub print_all_taxsets {
     }
     else {
         open( $fh, ">$outfile" )
-            || croak "Could not open $outfile for writing\n";
+            || Bio::NEXUS::Util::Exceptions::FileError->throw(
+        	'error' => "Could not open $outfile for writing" 
+        );
     }
 
     for my $setname ( sort keys %{ $self->{'taxsets'} } ) {
@@ -280,6 +286,33 @@ sub rename_otus {
         }
         $self->add_taxsets( { $setname, \@new_otu_names } );
     }
+}
+
+=head2 add_otu_clone
+
+ Title   : add_otu_clone
+ Usage   : ...
+ Function: ...
+ Returns : ...
+ Args    : ...
+
+=cut
+
+sub add_otu_clone {
+	my ( $self, $original_otu_name, $copy_otu_name ) = @_;
+	# print "Warning: Bio::NEXUS::SetsBlock::add_otu_clone() method not fully implemented\n";
+	
+	# add the cloned otu to those sets that contain the original otu
+	foreach my $set_id (keys %{ $self->get_taxsets() }) {
+		#print "> set ", $set_id, "\n";
+		my @set = @{ $self->get_taxsets()->{$set_id} };
+		foreach my $otu (@set) {
+			if ($otu eq $original_otu_name) {
+				#print "> found the original otu in ", $set_id, "\n";
+				push (@{$self->{'taxsets'}{$set_id}}, $copy_otu_name);
+			}
+		}
+	}
 }
 
 =head2 rename_taxsets
@@ -387,9 +420,8 @@ sub _write {
 }
 
 sub AUTOLOAD {
-    our $AUTOLOAD;
     return if $AUTOLOAD =~ /DESTROY$/;
-    my $package_name = 'Bio::NEXUS::SetsBlock::';
+    my $package_name = __PACKAGE__ . '::';
 
     # The following methods are deprecated and are temporarily supported
     # via a warning and a redirection
@@ -399,11 +431,13 @@ sub AUTOLOAD {
     );
 
     if ( defined $synonym_for{$AUTOLOAD} ) {
-        carp "$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead";
+        $logger->warn("$AUTOLOAD() is deprecated; use $synonym_for{$AUTOLOAD}() instead");
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-        croak "ERROR: Unknown method $AUTOLOAD called";
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        );
     }
     return;
 }
