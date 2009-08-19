@@ -2,7 +2,7 @@
 # CharactersBlock.pm
 #######################################################################
 # 
-# $Id: CharactersBlock.pm,v 1.81 2008/04/14 16:55:01 astoltzfus Exp $
+# $Id: CharactersBlock.pm,v 1.82 2008/04/24 19:07:25 astoltzfus Exp $
 #
 #################### START POD DOCUMENTATION ##########################
 
@@ -32,7 +32,7 @@ All feedbacks (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.81 $
+$Revision: 1.82 $
 
 =head1 METHODS
 
@@ -189,6 +189,7 @@ sub _parse_charlabels {
         push @charstates, $self->create_charstates( ++$id, $charlabel );
     }
     $self->set_charlabels( \@charlabels );
+ 	$self->set_charstatelabels( \@charstates );    
     return \@charstates;
 }
 

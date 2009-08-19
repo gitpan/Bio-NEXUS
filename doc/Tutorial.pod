@@ -167,7 +167,7 @@ For the first few exercises, we will use a sample NEXUS file with a taxa block, 
        TAXLABELS  A B C D;
  END;
  BEGIN CHARACTERS;
-       DIMENSIONS ntax=4 nchar=25
+       DIMENSIONS ntax=4 nchar=25;
        FORMAT DATATYPE=protein;
  MATRIX
    A     IKKGANLFKTRCAQCHTVEKDGGNI

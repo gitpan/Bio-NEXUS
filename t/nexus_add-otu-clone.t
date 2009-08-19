@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_add-otu-clone.t,v 1.3 2007/09/21 08:05:35 rvos Exp $
-# $Revision: 1.3 $
+# $Id: nexus_add-otu-clone.t,v 1.4 2008/06/16 19:55:39 astoltzfus Exp $
+# $Revision: 1.4 $
 
 
 # Written by Mikhail Bezruchko
@@ -56,12 +56,12 @@ $nex_obj_01->add_otu_clone('A', 'A_clone');
 # 'taxa' block
 my $taxa_block = $nex_obj_01->get_block('taxa');
 is ($taxa_block->get_ntax(), '5', 'ntax = 5');
-cmp_deeply ($taxa_block->get_taxlabels(), set('A', 'A_clone', 'B', 'C', 'D'), "taxlabel structure is updated");
+Test::Deep::cmp_deeply ($taxa_block->get_taxlabels(), Test::Deep::set('A', 'A_clone', 'B', 'C', 'D'), "taxlabel structure is updated");
 
 # 'characters' block
 my $char_block = $nex_obj_01->get_block('characters');
-cmp_deeply ($taxa_block->get_taxlabels(),
-	    set('A', 'A_clone', 'B', 'C', 'D'),
+Test::Deep::cmp_deeply ($taxa_block->get_taxlabels(),
+	    Test::Deep::set('A', 'A_clone', 'B', 'C', 'D'),
 	    "taxlabel struct is updated");
 #print Dumper $char_block;
 my $orig_otu = $char_block->get_otuset()->get_otu('A');
@@ -84,8 +84,8 @@ if (defined $orig_otu && defined $clone_otu) {
 my $trees_block = $nex_obj_01->get_block('trees');
 #print Dumper $trees_block;
 my $tree = $trees_block->get_trees()->[0];
-cmp_deeply($tree->get_node_names(),
-	   set('A', 'B', 'C', 'D', 'A_clone'),
+Test::Deep::cmp_deeply($tree->get_node_names(),
+	   Test::Deep::set('A', 'B', 'C', 'D', 'A_clone'),
     "OTUs in the tree are as expected");
 
 my $orig_node = $tree->find('A');
@@ -114,7 +114,7 @@ my $nex_obj_03 = new Bio::NEXUS('t/data/compliant/history-block_probab-distrib.n
 $nex_obj_03->add_otu_clone('A', 'A_clone');
 # 'history' block
 my $hist_block = $nex_obj_03->get_block('history');
-cmp_deeply($hist_block->get_taxlabels(), supersetof('A_clone', 'A'),
+Test::Deep::cmp_deeply($hist_block->get_taxlabels(), Test::Deep::supersetof('A_clone', 'A'),
 	   "the taxlabels now contains the new OTU");
 
 $clone_otu = $hist_block->get_otuset()->get_otu('A_clone');
@@ -123,8 +123,8 @@ is($clone_otu->get_seq()->[0]->{'type'}, 'polymorphism',
    "1st character is polymorphic, as expected");
 # 'history' block also contains phylo tree(s)
 my $hist_tree = $hist_block->get_trees()->[0];
-cmp_deeply($tree->get_node_names(),
-	   set('A', 'B', 'C', 'D', 'A_clone'),
+Test::Deep::cmp_deeply($tree->get_node_names(),
+	   Test::Deep::set('A', 'B', 'C', 'D', 'A_clone'),
     "OTUs in the tree are as expected");
 
 # cloning the clone
@@ -134,14 +134,14 @@ $taxa_block = $nex_obj_03->get_block('taxa');
 is ($taxa_block->get_ntax(), "6", 'ntax = 6');
 # 'char', 'tree' blocks
 $char_block = $nex_obj_03->get_block('characters');
-cmp_deeply($char_block->get_taxlabels(),
-	   set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
+Test::Deep::cmp_deeply($char_block->get_taxlabels(),
+	   Test::Deep::set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
 	   "taxlabels match");
 # 'treesblock' block
 $trees_block = $nex_obj_03->get_block('trees');
 $tree = $trees_block->get_trees()->[0];
-cmp_deeply($tree->get_node_names(),
-	   set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
+Test::Deep::cmp_deeply($tree->get_node_names(),
+	   Test::Deep::set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
 	   "otu-node names match the expected");
 
 $orig_node = $tree->find('A');
@@ -210,9 +210,9 @@ $nex_obj_04->add_otu_clone("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone")
 #print Dumper $animals;
 #print Dumper $sets_block->get_taxset('fungi');
 
-cmp_deeply($invertebrates, set("Anopheles_gambiae_agCT55686", "Caenorhabditis_elegans_17554758", "Drosophila_melanogaster_7295730"), "invertebrates set is correct");
-cmp_deeply($vertebrates, set("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone"), "vertebrates set is correct");
-cmp_deeply($animals, supersetof("Homo_sapiens_4507761_clone"), "animals set contains the clone");
+Test::Deep::cmp_deeply($invertebrates, Test::Deep::set("Anopheles_gambiae_agCT55686", "Caenorhabditis_elegans_17554758", "Drosophila_melanogaster_7295730"), "invertebrates set is correct");
+Test::Deep::cmp_deeply($vertebrates, Test::Deep::set("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone"), "vertebrates set is correct");
+Test::Deep::cmp_deeply($animals, Test::Deep::supersetof("Homo_sapiens_4507761_clone"), "animals set contains the clone");
 
 print "\n";
 print "--- nex_obj_05 ---\n";
@@ -335,7 +335,7 @@ foreach my $taxon ( @{ $taxlabels_data } ) {
     if ($entry eq 'Neurospora_crassa_CAC18189.1') {
       #print "Found it!\n";
       #print Dumper $taxon;
-      cmp_deeply($taxon, supersetof('Neurospora_crassa_CAC18189.1',
+      Test::Deep::cmp_deeply($taxon, Test::Deep::supersetof('Neurospora_crassa_CAC18189.1',
 'Neurospora_crassa_CAC18189.1_clone'),
 "now the entry for the orginal OTU contains the clone as well");
     }
@@ -354,8 +354,8 @@ is ($unalign_block->find_taxon('taxon_3_clone'), 0, "taxon_3_clone does NOT exis
 $nex_obj_06->add_otu_clone('taxon_3', 'taxon_3_clone');
 
 #print Dumper $unalign_block;
-cmp_deeply($unalign_block->get_taxlabels(),
-set('taxon_1', 'taxon_2', 'taxon_3', 'taxon_4', 'taxon_3_clone'),
+Test::Deep::cmp_deeply($unalign_block->get_taxlabels(),
+Test::Deep::set('taxon_1', 'taxon_2', 'taxon_3', 'taxon_4', 'taxon_3_clone'),
 "taxlabels struct is updated");
 my $seq_string = $unalign_block->get_otuset()->get_otu('taxon_3_clone')->get_seq_string();
 is($seq_string, 'ACCAGGACTAGATCAAG', "sequence was cloned properly");

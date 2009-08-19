@@ -2,7 +2,7 @@
 # Node.pm
 ######################################################
 # Author:  Weigang Qiu, Eugene Melamud, Chengzhi Liang, Peter Yang, Thomas Hladish, Vivek Gopalan
-# $Id: Node.pm,v 1.69 2008/03/10 19:15:41 vivekgopalan Exp $
+# $Id: Node.pm,v 1.70 2009/08/13 20:35:55 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -862,6 +862,8 @@ sub find {
 sub prune {
     my ( $self, $OTUlist ) = @_;
     my $name = $self->get_name();
+    # the following line is in response to [rt.cpan.org #47707] Bug in Bio::NEXUS::Node.pm
+    $name = quotemeta $name; 
     if ( $self->is_otu() ) {
         if ( $OTUlist =~ /\s+$name\s+/ ) {
 

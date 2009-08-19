@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: charactersblock_methods-02.t,v 1.12 2008/04/14 16:55:01 astoltzfus Exp $
-# $Revision: 1.12 $
+# $Id: charactersblock_methods-02.t,v 1.14 2008/05/09 16:33:05 astoltzfus Exp $
+# $Revision: 1.14 $
 
 
 # Written by Vivek Gopalan (gopalan@umbi.umd.edu)
@@ -42,6 +42,24 @@ is ($char_block->find_taxon('Z'), 0, "Taxon 'Z' is not present");
 
 is ($char_block->get_nchar(), 59, "Number of characters is correct");
 
+# testing ability to get contents of format command 
+is($char_block->get_format('datatype'), 'protein', "Datatype (format subcommand) is correct"); 
+is($char_block->get_format('gap'),'-',"gap (format subcommand) is correct"); 
+is($char_block->get_format('missing'),'?',"missing (format subcommand) is correct"); 
+
+# now we test ability to set format to new values
+my $format = { 'datatype' => 'standard', 'gap' => '~', 'missing' => '*' };
+$char_block->set_format( $format );
+is($char_block->get_format('datatype'), 'standard', "Revised datatype (format subcommand) is correct"); 
+is($char_block->get_format('gap'),'~',"Revised gap (format subcommand) is correct"); 
+is($char_block->get_format('missing'),'*',"Revised missing (format subcommand) is correct"); 
+
+# enrico's code for testing - this works, turns out the input file was bad 
+# $nexus_obj = new Bio::NEXUS("t/data/compliant/example1.nex");
+# my $t = $nexus_obj->get_block('CHARACTERS');
+# is($t->get_format('datatype'), 'protein', "Datatype (format subcommand) is correct"); 
+# my $format = $t->get_format();
+# print Dumper $format;
 
 
 #------------------------------------------------------------------------------------------------------------
@@ -85,7 +103,6 @@ print "char_block->equals(char_block): ", $char_block->equals($char_block), "\n"
 print "char_block->equals(char_block_2): ", $char_block->equals($char_block_2), "\n";
 print "char_block->equals(char_block_4): ", $char_block->equals($char_block_4), "\n";
 
-
 # Testing char-s & states
 
 $nexus_file= "t/data/compliant/04_charactersblock_methods_05.nex";
@@ -98,28 +115,7 @@ eval {
 };
 is ($@, '', 'Parsing successful');
 
-# 	charstatelabels 1 hair/absent present, 2 color/red blue, 3 size/small big;
-
-my $labels = $char_block->get_charstatelabels(); 
-
-print "Checking processing of labels from charstatelabels command . . . \n"; 
-is ( $$labels[0]{'charlabel'}, 'hair', "Label 'hair' for first character");  
-my $states = $$labels[0]{'states'}; 
-is ( $$states{'0'}, 'absent', "Label 'absent' for state 0 of first character");  
-is ( $$states{'1'}, 'present', "Label 'present' for state 1 of first character");  
-
-is ( $$labels[1]{'charlabel'}, 'color', "Label 'color' for second character");  
-$states = $$labels[1]{'states'}; 
-is ( $$states{'0'}, 'red', "Label 'red' for state 0 of second character");  
-
-is ( $$labels[2]{'charlabel'}, 'size', "Label 'size' for third char");  
-$states = $$labels[2]{'states'}; 
-is ( $$states{'1'}, 'big', "Label 'big' for state 1 of third character");  
-
-# print "charstatelabels: ", Dumper $char_block->get_charstatelabels();
-#print "charstates: ", Dumper $char_block->get_charstates();
-#print "charlables: ", Dumper $char_block->get_charlabels();
-#print "statelabels: ", Dumper $char_block->get_statelabels();
+#  renaming OTUs 
 
 print "Renaming an OTU...\n";
 $char_block->rename_otus({'taxon_1' => 'homo_sap'});
@@ -149,6 +145,80 @@ foreach my $otu (@{$otus}) {
 		}
 }
 is ($has_otu, 1, "Renaming successful: taxon_2 is in the set");
+
+# 	charstatelabels 1 hair/absent present, 2 color/red blue, 3 size/small big;
+
+my $labels = $char_block->get_charstatelabels(); 
+
+print "Checking processing of labels from charstatelabels command . . . \n"; 
+is ( $$labels[0]{'charlabel'}, 'hair', "Label 'hair' for first character");  
+my $states = $$labels[0]{'states'}; 
+is ( $$states{'0'}, 'absent', "Label 'absent' for state 0 of first character");  
+is ( $$states{'1'}, 'present', "Label 'present' for state 1 of first character");  
+
+is ( $$labels[1]{'charlabel'}, 'color', "Label 'color' for second character");  
+$states = $$labels[1]{'states'}; 
+is ( $$states{'0'}, 'red', "Label 'red' for state 0 of second character");  
+
+is ( $$labels[2]{'charlabel'}, 'size', "Label 'size' for third char");  
+$states = $$labels[2]{'states'}; 
+is ( $$states{'1'}, 'big', "Label 'big' for state 1 of third character");  
+
+
+# Another set of more challenging tests, based on file 04_characterstatelabels_05.nex
+# 
+# Unfinished! 
+# 
+# To do: 
+#    * determine whether std requires that charstatelabel list order be sequential
+#    * if needed, modify CharactersBlock code to allow nonsequential charstatelabel items
+#    * implement test for list contents below
+#    * ideally, use deep compare method (Test::Deep?)
+# 
+$nexus_file= "t/data/compliant/04_characterstatelabels_05.nex";
+
+eval {
+	$nex_obj = new Bio::NEXUS($nexus_file);
+	$char_block = $nex_obj->get_block("characters");
+};
+is ($@, '', 'Parsing successful');
+
+$labels = $char_block->get_charstatelabels(); 
+
+my @true_charstatelabels = [ 
+	{ 
+		'id' => '1',
+	  	'char_label' => 'DTC_migration_pattern', 
+	  	'states' => {
+	    	'1' => 'out,_dorsal,_back', 
+	  		'2' => 'out,_dorsal,_back,_ventral', 
+	  		'3' => 'out,_dorsal,_back,_ventral,_second_turn' 
+	  	}
+	},
+	{ 
+		'id' => '3',
+	  	'char_label' => 'P6.p_requirement_for_late_induction', 
+	  	'states' => {
+	    	'1' => 'not_required', 
+	  		'2' => 'required', 
+	  		'3' => '(not_applicable)' 
+	  	}
+	}	
+];
+
+#   	2  Dependence_on_gonadal_induction_before_VPCs_divide / no_gonad_requirement dependent_on_gonad,
+#   	4  Source_of_first_induction_signal / gonad AC gonad_independent,
+#   	8  'B: P5.pap/P7.ppa division' / U L T O,
+#   	9  'C: P5.ppa/P7.pap division' / U L T,
+#   	10  'D: P5.ppp/P7.paa division' / U L T,
+#   	11  P4.p_lineage_pattern / 'S_(no_division)' 'SS_(1_division)' 'Sss_(2_divisions;_inner_daughter_divides_again)' 'SSSS_(3_divisions)' '(SSLL)_(5_divisions;_inner_granddaughters_divide_L)' 'LLLL_(7_divisions;_8_cells)',
+#   	12  P8.p_lineage_pattern / 'S_(no_division)' 'SS_(1_division)' 'ssS_(2_divisions)' 'SSSS_(3_divisions)' 'LLSS_(5_divisions)' 'LLLL_(7_divisions)',
+#   	20  P3.p_division_frequency / in_less_than_20%_of_cells more_than_20%_of_cells 
+#   	5  P6.p_lineage_pattern / TTTT TUUT UTTU UUTT UTTT,
+#   	6  'P (5,7).p lineage pattern' / UUUU LUUU LLUU LLLU LLTU LULU LOTU sUUU UULL,
+#   	7  'A: P5.paa/P7.ppp division' / U L T O,
+# 
+
 
 #Added by Vivek (14-Dec- 2006) Based on the BUG submitted by John Bradley
 #select_columns && get_nchar methods

@@ -2,8 +2,8 @@
 # NEXUS.pm
 ######################################################
 #
-# $Id: NEXUS.pm,v 1.111 2008/04/18 17:51:41 astoltzfus Exp $
-# $Revision: 1.111 $
+# $Id: NEXUS.pm,v 1.114 2009/08/13 21:08:56 astoltzfus Exp $
+# $Revision: 1.114 $
 #
 #################### START POD DOCUMENTATION ##################
 
@@ -70,7 +70,7 @@ use Bio::NEXUS::Util::Exceptions 'throw';
 # ExtUtils::MakeMaker reads package global $VERSION
 
 use vars qw($VERSION $AUTOLOAD);
-$VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.69' : sprintf " %d." . "%02d" x $#r, @r; };
+$VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.72' : sprintf " %d." . "%02d" x $#r, @r; };
 
 # a logger is an object that conditionally prints messages,
 # so we don't need to add print statements and then comment
@@ -102,6 +102,19 @@ sub new {
     }
     return $self;
 }
+
+
+=head2 get_bionexus_version
+
+ Title   : get_bionexus_version
+ Usage   : Bio::NEXUS->get_bionexus_version();
+ Function: gets the package version  
+ Returns : value of \$VERSION
+ Args    : none
+
+=cut
+
+sub get_bionexus_version { return $VERSION; }
 
 =head2 read_file
 
@@ -366,7 +379,7 @@ sub create_block {
         'unaligned' => "Bio::NEXUS::UnalignedBlock"
     );
     my $class = $block_types{$block_type};
-    $logger->info("class: $class");
+    if ( defined( $class ) ) { $logger->info("class: $class"); }
 
     my $taxlabels;
     if ( defined $self->get_block('taxa') ) {

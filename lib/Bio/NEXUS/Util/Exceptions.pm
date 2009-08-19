@@ -1,4 +1,4 @@
-# $Id: Exceptions.pm,v 1.2 2007/09/24 04:52:11 rvos Exp $
+# $Id: Exceptions.pm,v 1.3 2008/05/03 01:11:02 rvos Exp $
 package Bio::NEXUS::Util::StackTrace;
 use strict;
 
@@ -61,6 +61,7 @@ sub as_string {
 		}
 		my $file = $frame->[1];
 		my $line = $frame->[2];
+		no warnings 'uninitialized';
 		$string .= $method . "(" . join(', ', map { "'$_'" } @args ) . ") called at $file line $line\n";
 	}
 	return $string;
@@ -429,7 +430,7 @@ Serializes exception.
 
 =head1 REVISION
 
- $Id: Exceptions.pm,v 1.2 2007/09/24 04:52:11 rvos Exp $
+ $Id: Exceptions.pm,v 1.3 2008/05/03 01:11:02 rvos Exp $
 
 =cut
 
