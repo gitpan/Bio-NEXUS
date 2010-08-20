@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_add-otu-clone.t,v 1.4 2008/06/16 19:55:39 astoltzfus Exp $
-# $Revision: 1.4 $
+# $Id: nexus_add-otu-clone.t,v 1.5 2010/08/20 14:07:23 astoltzfus Exp $
+# $Revision: 1.5 $
 
 
 # Written by Mikhail Bezruchko
@@ -12,17 +12,24 @@
 
 use strict;
 use warnings;
-eval { require Test::Deep };
-if ( $@ ) {	
+
+eval { require Clone::PP };
+if ( $@ ) {
 	require Test::More;
-	Test::More->import( 'skip_all' => 'Test::Deep not found' );
+	Test::More->import( 'skip_all' => 'Clone::PP not installed' );
+	exit 0;
 }
 else {
 	require Test::More;
 	Test::More->import( 'no_plan' );
 }
 
-#use Test::Deep;
+eval "use Test::Deep";
+my $skip = "false";
+$skip = "true" if $@;
+
+print "\n";
+print "I will skip the tests that use Test::Deep; the module is not installed" if $skip eq "true";
 
 use lib 'lib';
 use Bio::NEXUS;

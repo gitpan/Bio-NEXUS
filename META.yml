@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Bio-NEXUS
-version:            0.74
+version:            0.75
 abstract:           Bio::NEXUS - A NEXUS Application Programming Interface in Perl
 author:
     - Hladish, Liang, Qiu, Yang, Gopalan, & Stoltzfus (arlin.stoltzfus@nist.gov)
