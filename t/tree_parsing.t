@@ -10,8 +10,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib '../lib';
-
 use Bio::NEXUS;
 
 my ($tree,$tree_block);

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
-# $Author: thladish $
-# $Date: 2006/08/10 01:35:49 $
-# $Revision: 1.3 $
+# $Author: astoltzfus $
+# $Date: 2010/09/22 19:59:57 $
+# $Revision: 1.4 $
 
 use strict;
 use Carp;
@@ -10,7 +10,7 @@ use Pod::Usage;
 
 my $nada = "";
 my $Id = "";
-my $version = "$Id: tree2nex.pl,v 1.3 2006/08/10 01:35:49 thladish Exp $nada"; 
+my $version = "$Id: tree2nex.pl,v 1.4 2010/09/22 19:59:57 astoltzfus Exp $nada"; 
 
 Getopt::Long::Configure("bundling"); # for short options bundling
 my %opts = ();
@@ -35,7 +35,7 @@ while ( <> ) {
     $treeString .= $_; 
 }
 
-printf( "#nexus\nbegin trees\n" );
+printf( "#nexus\nbegin trees;\n" );
 
 #
 # note: need to implement option for named trees?  if so, then 
@@ -97,7 +97,7 @@ Print the version information and exit.
 
 =head1 VERSION
 
-$Id: tree2nex.pl,v 1.3 2006/08/10 01:35:49 thladish Exp $
+$Id: tree2nex.pl,v 1.4 2010/09/22 19:59:57 astoltzfus Exp $
 
 =head1 AUTHOR
 

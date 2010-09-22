@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Arlin Stoltzfus, based on code kindly provided by Jon Hill, jon.hill@imperial.ac.uk
-# $Id: tree_parsing_quotemeta.t,v 1.1 2009/08/13 20:35:55 astoltzfus Exp $
-# $Revision: 1.1 $
+# $Id: tree_parsing_quotemeta.t,v 1.2 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.2 $
 # Reference : perldoc Test::Tutorial, Test::Simple, Test::More
 # Date : 13th August 2009
 
@@ -15,7 +15,6 @@ use Test::More tests =>1;
 use strict;
 use warnings;
 use Data::Dumper;
-use lib '../lib';
 use Bio::NEXUS;
 
 ################## test case to demonstrate bug in Bio::NEXUS #######################################

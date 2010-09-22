@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_add-otu-clone.t,v 1.5 2010/08/20 14:07:23 astoltzfus Exp $
-# $Revision: 1.5 $
+# $Id: nexus_add-otu-clone.t,v 1.6 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.6 $
 
 
 # Written by Mikhail Bezruchko
@@ -31,7 +31,6 @@ $skip = "true" if $@;
 print "\n";
 print "I will skip the tests that use Test::Deep; the module is not installed" if $skip eq "true";
 
-use lib 'lib';
 use Bio::NEXUS;
 use Data::Dumper;
 
@@ -63,13 +62,16 @@ $nex_obj_01->add_otu_clone('A', 'A_clone');
 # 'taxa' block
 my $taxa_block = $nex_obj_01->get_block('taxa');
 is ($taxa_block->get_ntax(), '5', 'ntax = 5');
-Test::Deep::cmp_deeply ($taxa_block->get_taxlabels(), Test::Deep::set('A', 'A_clone', 'B', 'C', 'D'), "taxlabel structure is updated");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply ($taxa_block->get_taxlabels(), set('A', 'A_clone', 'B', 'C', 'D'), "taxlabel structure is updated");
+}
 
 # 'characters' block
 my $char_block = $nex_obj_01->get_block('characters');
-Test::Deep::cmp_deeply ($taxa_block->get_taxlabels(),
-	    Test::Deep::set('A', 'A_clone', 'B', 'C', 'D'),
-	    "taxlabel struct is updated");
 #print Dumper $char_block;
 my $orig_otu = $char_block->get_otuset()->get_otu('A');
 my $clone_otu = $char_block->get_otuset()->get_otu('A_clone');
@@ -91,9 +93,13 @@ if (defined $orig_otu && defined $clone_otu) {
 my $trees_block = $nex_obj_01->get_block('trees');
 #print Dumper $trees_block;
 my $tree = $trees_block->get_trees()->[0];
-Test::Deep::cmp_deeply($tree->get_node_names(),
-	   Test::Deep::set('A', 'B', 'C', 'D', 'A_clone'),
-    "OTUs in the tree are as expected");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($tree->get_node_names(), set('A', 'B', 'C', 'D', 'A_clone'), "OTUs in the tree are as expected");
+}
 
 my $orig_node = $tree->find('A');
 my $clone_node = $tree->find('A_clone');
@@ -113,7 +119,13 @@ my $orig_seq = $char_block->get_otuset()->get_otu('taxon_1')->get_seq();
 my $clone_seq = $char_block->get_otuset()->get_otu('taxon_1_clone')->get_seq();
 #print Dumper $orig_seq;
 #print Dumper $clone_seq;
-is_deeply ($orig_seq, $clone_seq, "seq-s match");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	is_deeply($orig_seq, $clone_seq, "seq-s match");
+}
 
 print "\n";
 print "--- nex_obj_03 ---\n";
@@ -121,8 +133,13 @@ my $nex_obj_03 = new Bio::NEXUS('t/data/compliant/history-block_probab-distrib.n
 $nex_obj_03->add_otu_clone('A', 'A_clone');
 # 'history' block
 my $hist_block = $nex_obj_03->get_block('history');
-Test::Deep::cmp_deeply($hist_block->get_taxlabels(), Test::Deep::supersetof('A_clone', 'A'),
-	   "the taxlabels now contains the new OTU");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($hist_block->get_taxlabels(), supersetof('A_clone', 'A'), "the taxlabels now contains the new OTU");
+}
 
 $clone_otu = $hist_block->get_otuset()->get_otu('A_clone');
 isa_ok($clone_otu, 'Bio::NEXUS::TaxUnit');
@@ -130,9 +147,13 @@ is($clone_otu->get_seq()->[0]->{'type'}, 'polymorphism',
    "1st character is polymorphic, as expected");
 # 'history' block also contains phylo tree(s)
 my $hist_tree = $hist_block->get_trees()->[0];
-Test::Deep::cmp_deeply($tree->get_node_names(),
-	   Test::Deep::set('A', 'B', 'C', 'D', 'A_clone'),
-    "OTUs in the tree are as expected");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($tree->get_node_names(), set('A', 'B', 'C', 'D', 'A_clone'), "OTUs in the tree are as expected");
+}
 
 # cloning the clone
 $nex_obj_03->add_otu_clone('A_clone', 'A_clone_again');
@@ -141,15 +162,24 @@ $taxa_block = $nex_obj_03->get_block('taxa');
 is ($taxa_block->get_ntax(), "6", 'ntax = 6');
 # 'char', 'tree' blocks
 $char_block = $nex_obj_03->get_block('characters');
-Test::Deep::cmp_deeply($char_block->get_taxlabels(),
-	   Test::Deep::set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
-	   "taxlabels match");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($char_block->get_taxlabels(), set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'), "taxlabels match");
+}
+
 # 'treesblock' block
 $trees_block = $nex_obj_03->get_block('trees');
 $tree = $trees_block->get_trees()->[0];
-Test::Deep::cmp_deeply($tree->get_node_names(),
-	   Test::Deep::set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'),
-	   "otu-node names match the expected");
+
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($tree->get_node_names(), set('A', 'A_clone', 'A_clone_again', 'B', 'C', 'D'), "otu-node names match the expected");
+}
 
 $orig_node = $tree->find('A');
 my $clone_node_1 = $tree->find('A_clone');
@@ -217,9 +247,14 @@ $nex_obj_04->add_otu_clone("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone")
 #print Dumper $animals;
 #print Dumper $sets_block->get_taxset('fungi');
 
-Test::Deep::cmp_deeply($invertebrates, Test::Deep::set("Anopheles_gambiae_agCT55686", "Caenorhabditis_elegans_17554758", "Drosophila_melanogaster_7295730"), "invertebrates set is correct");
-Test::Deep::cmp_deeply($vertebrates, Test::Deep::set("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone"), "vertebrates set is correct");
-Test::Deep::cmp_deeply($animals, Test::Deep::supersetof("Homo_sapiens_4507761_clone"), "animals set contains the clone");
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	cmp_deeply($invertebrates, set("Anopheles_gambiae_agCT55686", "Caenorhabditis_elegans_17554758", "Drosophila_melanogaster_7295730"), "invertebrates set is correct");
+	cmp_deeply($vertebrates, set("Homo_sapiens_4507761", "Homo_sapiens_4507761_clone"), "vertebrates set is correct");
+	cmp_deeply($animals, supersetof("Homo_sapiens_4507761_clone"), "animals set contains the clone");
+}
 
 print "\n";
 print "--- nex_obj_05 ---\n";
@@ -337,16 +372,19 @@ $nex_obj_05->add_otu_clone('Neurospora_crassa_CAC18189.1',
 my $taxlabels_data = $span_block->get_data('taxlabels');
 #print Dumper $taxlabels_data;
 
-foreach my $taxon ( @{ $taxlabels_data } ) {
-  foreach my $entry ( @{ $taxon } ) {
-    if ($entry eq 'Neurospora_crassa_CAC18189.1') {
-      #print "Found it!\n";
-      #print Dumper $taxon;
-      Test::Deep::cmp_deeply($taxon, Test::Deep::supersetof('Neurospora_crassa_CAC18189.1',
-'Neurospora_crassa_CAC18189.1_clone'),
-"now the entry for the orginal OTU contains the clone as well");
-    }
-  }
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	foreach my $taxon ( @{ $taxlabels_data } ) {
+		foreach my $entry ( @{ $taxon } ) {
+			if ($entry eq 'Neurospora_crassa_CAC18189.1') {
+				#print "Found it!\n";
+				#print Dumper $taxon;
+      			cmp_deeply($taxon, supersetof('Neurospora_crassa_CAC18189.1', 'Neurospora_crassa_CAC18189.1_clone'), "now the entry for the orginal OTU contains the clone as well");
+			}
+		}
+	}
 }
 
 print "\n";
@@ -360,10 +398,14 @@ is ($unalign_block->find_taxon('taxon_3_clone'), 0, "taxon_3_clone does NOT exis
 
 $nex_obj_06->add_otu_clone('taxon_3', 'taxon_3_clone');
 
-#print Dumper $unalign_block;
-Test::Deep::cmp_deeply($unalign_block->get_taxlabels(),
-Test::Deep::set('taxon_1', 'taxon_2', 'taxon_3', 'taxon_4', 'taxon_3_clone'),
-"taxlabels struct is updated");
+SKIP: {
+	# Test::Deep is required
+	eval { require Test::Deep };
+	Test::More::skip( "Test::Deep is not installed", 1 ) if $skip eq "true";
+	#print Dumper $unalign_block;
+	cmp_deeply($unalign_block->get_taxlabels(), set('taxon_1', 'taxon_2', 'taxon_3', 'taxon_4', 'taxon_3_clone'), "taxlabels struct is updated");
+}
+
 my $seq_string = $unalign_block->get_otuset()->get_otu('taxon_3_clone')->get_seq_string();
 is($seq_string, 'ACCAGGACTAGATCAAG', "sequence was cloned properly");
 

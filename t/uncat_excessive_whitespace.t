@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: uncat_excessive_whitespace.t,v 1.8 2007/09/21 07:30:27 rvos Exp $
-# $Revision: 1.8 $
+# $Id: uncat_excessive_whitespace.t,v 1.9 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.9 $
 
 
 # Written by Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -15,7 +15,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib 'lib';
 
 use Bio::NEXUS;
 my ($nexus,$blocks,$character_block,$taxa_block,$tree_block,$file_name);

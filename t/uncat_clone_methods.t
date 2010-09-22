@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: uncat_clone_methods.t,v 1.15 2008/03/06 17:40:24 vivekgopalan Exp $
-# $Revision: 1.15 $
+# $Id: uncat_clone_methods.t,v 1.16 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.16 $
 
 
 # Written by Mikhail Bezruchko, Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -31,7 +31,6 @@ $skip = "true" if $@;
 print "\n";
 print "I will skip the tests that use Test::Deep; the module is not installed" if $skip eq "true";
 
-use lib 'lib';
 use Bio::NEXUS;
 
 ##############################################

@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: tree_equals.t,v 1.10 2007/02/22 20:46:50 vivek Exp $
-# $Revision: 1.10 $
+# $Id: tree_equals.t,v 1.11 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.11 $
 
 
 # Written by Mikhail Bezruchko, Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -14,8 +14,6 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Test::More 'no_plan';
-
-use lib 'lib';
 use Bio::NEXUS;
 
 ##############################################

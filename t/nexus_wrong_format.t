@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_wrong_format.t,v 1.6 2007/09/21 07:30:27 rvos Exp $
-# $Revision: 1.6 $
+# $Id: nexus_wrong_format.t,v 1.7 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.7 $
 
 
 # Written by Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -15,8 +15,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib '../lib';
-
 use Bio::NEXUS;
 
 ### NEXUS file with wrong token

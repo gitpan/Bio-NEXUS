@@ -1,8 +1,8 @@
 #!/usr/bin/perl -w
 
 ######################################################
-# $Id: matrix_polymorphic-and-uncertain.t,v 1.10 2008/04/18 17:43:49 astoltzfus Exp $
-# $Revision: 1.10 $
+# $Id: matrix_polymorphic-and-uncertain.t,v 1.11 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.11 $
 
 # Written by Gopalan Vivek (gopalan@umbi.umd.edu)
 # Reference : http://www.perl.com/pub/a/2004/05/07/testing.html?page=2
@@ -12,7 +12,6 @@ use strict;
 use warnings;
 use Test::More 'no_plan';
 
-use lib 'lib';
 use Bio::NEXUS;
 use Data::Dumper;
 

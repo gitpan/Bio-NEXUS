@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: matrix_historyblock-probab-distrib.t,v 1.7 2007/02/22 20:46:50 vivek Exp $
-# $Revision: 1.7 $
+# $Id: matrix_historyblock-probab-distrib.t,v 1.8 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.8 $
 
 
 # Written by Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -14,7 +14,6 @@ use strict;
 use warnings;
 use Test::More 'no_plan';
 
-use lib 'lib';
 use Bio::NEXUS;
 use Data::Dumper;
 

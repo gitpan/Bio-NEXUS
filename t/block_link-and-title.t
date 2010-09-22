@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: block_link-and-title.t,v 1.6 2007/02/22 20:44:16 vivek Exp $
-# $Revision: 1.6 $
+# $Id: block_link-and-title.t,v 1.7 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.7 $
 
 # Written by Mikhail Bezruchko, Gopalan Vivek (gopalan@umbi.umd.edu)
 # Reference : http://www.perl.com/pub/a/2004/05/07/testing.html?page=2
@@ -14,7 +14,6 @@ use warnings;
 use Data::Dumper;
 use Test::More 'no_plan';
 
-use lib 'lib';
 use Bio::NEXUS;
 
 ##############################################

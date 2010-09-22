@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nhxcmd_parsing.t,v 1.8 2007/02/22 20:48:39 vivek Exp $
-# $Revision: 1.8 $
+# $Id: nhxcmd_parsing.t,v 1.9 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.9 $
 
 
 # Written by Vivek Gopalan (gopalan@umbi.umd.edu)
@@ -14,7 +14,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib 'lib';
 use Bio::NEXUS;
 
 

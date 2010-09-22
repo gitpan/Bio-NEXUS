@@ -110,11 +110,15 @@ or else an html version can be made with pod2html:
 
   pod2html Tutorial.pod > Tutorial.html
 
+There is also a user manual that is rather incomplete but may be useful in some respects: 
+
+  pod2html UserManual.pod > UserManual.html
+
 After installation, the installation directory of files may be deleted.
 
 =head1 SEE ALSO
 
-L<Tutorial>, L<UserManual> and L<Bio::NEXUS>
+L<Tutorial> and L<Bio::NEXUS>
 
 =head1 AUTHORS
 

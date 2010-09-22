@@ -5,7 +5,6 @@ use File::Spec;
 use Bio::NEXUS::Util::Exceptions 'throw';
 use Config;
 use vars qw($volume $class_dir $file $VERBOSE $AUTOLOAD);
-use UNIVERSAL 'isa';
 
 BEGIN {
 	my $class_file = __FILE__;
@@ -71,7 +70,7 @@ BEGIN {
 	sub set_listeners {
 		my ( $self, @args ) = @_;
 		for my $arg ( @args ) {
-			if ( isa( $arg, 'CODE' ) ) {
+			if ( UNIVERSAL::isa( $arg, 'CODE' ) ) {
 				push @listeners, $arg;
 			}
 			else {
@@ -321,6 +320,6 @@ an exception object), 1 = errors (hopefully recoverable), 2 = warnings
 
 =head1 REVISION
 
- $Id: Logger.pm,v 1.2 2007/09/24 04:52:11 rvos Exp $
+ $Id: Logger.pm,v 1.3 2010/09/22 20:05:51 astoltzfus Exp $
 
 =cut

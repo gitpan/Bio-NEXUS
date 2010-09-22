@@ -119,7 +119,7 @@ sub _parse_nexus_words {
         my $char = $chars[$i];
         my $next = $chars[ $i + 1 ];
 
-        if ($comment_level) {
+        if ($comment_level) {  # if we are in a comment already
             $comment_level++ if ( $char eq '[' );
             $comment_level-- if ( $char eq ']' );
             $word .= $char;
@@ -166,13 +166,14 @@ sub _parse_nexus_words {
             # We're in a quoted string, so anything can be part of the word
             $word .= $char;
         }
-        elsif ( $char eq '[' ) {
+        elsif ( $char eq '[' ) {  # hit new comment, level 0 (bug if we just finished one)
             $comment_level++;
             $word .= $char;
         }
 
         # If we see NEXUS-style punctuation
         elsif ( $char =~ /[\[\]\-(){}\/\\,;:=*"`+<>]/ ) {
+        	
             push @words, &_ntsa($word)
 
                 # $word will be q{} if there was a preceding space;

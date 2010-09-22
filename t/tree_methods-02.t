@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: tree_methods-02.t,v 1.5 2007/02/16 22:31:47 mike Exp $
-# $Revision: 1.5 $
+# $Id: tree_methods-02.t,v 1.6 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.6 $
 
 
 # Written by Vivek Gopalan (gopalan@umbi.umd.edu)
@@ -14,7 +14,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib '../lib';
 use Bio::NEXUS;
 
 my ($tree,$tree_block,$text_value, $nexus_obj);

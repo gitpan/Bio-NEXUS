@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_block-level-commands.t,v 1.8 2007/02/22 20:44:16 vivek Exp $
-# $Revision: 1.8 $
+# $Id: nexus_block-level-commands.t,v 1.9 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.9 $
 
 
 # Written by Mikhail Bezruchko, Gopalan Vivek (gopalan@umbi.umd.edu)
@@ -15,7 +15,6 @@ use warnings;
 use Data::Dumper;
 use Test::More 'no_plan';
 
-use lib 'lib';
 use Bio::NEXUS;
 
 ##############################################

@@ -2,8 +2,8 @@
 
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: charactersblock_methods-02.t,v 1.14 2008/05/09 16:33:05 astoltzfus Exp $
-# $Revision: 1.14 $
+# $Id: charactersblock_methods-02.t,v 1.15 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.15 $
 
 
 # Written by Vivek Gopalan (gopalan@umbi.umd.edu)
@@ -14,7 +14,6 @@ use Test::More 'no_plan';
 use strict;
 use warnings;
 use Data::Dumper;
-use lib 'lib';
 use Bio::NEXUS;
 
 print "Testing CharactersBlock.pm module (its methods)...\n";

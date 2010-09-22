@@ -2,8 +2,8 @@
 
 ######################################################
 #
-# $Id: uncat_write.t,v 1.1 2008/04/18 17:51:41 astoltzfus Exp $
-# $Revision: 1.1 $
+# $Id: uncat_write.t,v 1.2 2010/09/22 19:59:00 astoltzfus Exp $
+# $Revision: 1.2 $
 #
 # Reference : http://www.perl.com/pub/a/2004/05/07/testing.html
 #
@@ -12,8 +12,6 @@
 use strict;
 use warnings;
 use Test::More 'no_plan';
-
-use lib 'lib';
 use Bio::NEXUS;
 use Data::Dumper;
 

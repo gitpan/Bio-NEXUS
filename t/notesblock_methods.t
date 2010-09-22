@@ -7,7 +7,6 @@ use warnings;
 #use Test::More 'no_plan';
 use Test::More skip_all => "The notes block implementation is not complete";
 
-use lib '../lib';
 use Bio::NEXUS;
 # use Data::Dumper;
 
