@@ -1,8 +1,10 @@
 #################################################################
 # CodonsBlock.pm
 #################################################################
-# Author: Thomas Hladish
-# $Id: CodonsBlock.pm,v 1.13 2007/09/21 23:09:09 rvos Exp $
+# 
+# thanks to Tom Hladish for the original version 
+#
+# $Id: CodonsBlock.pm,v 1.14 2012/02/07 21:38:09 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -28,7 +30,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.13 $
+$Revision: 1.14 $
 
 =head1 METHODS
 
@@ -37,8 +39,6 @@ $Revision: 1.13 $
 package Bio::NEXUS::CodonsBlock;
 
 use strict;
-#use Data::Dumper; # XXX this is not used, might as well not import it!
-#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Util::Logger;
 use Bio::NEXUS::Util::Exceptions;
@@ -51,17 +51,25 @@ my $logger = Bio::NEXUS::Util::Logger->new();
 =head2 new
 
  Title   : new
- Usage   : block_object = new Bio::NEXUS::CodonsBlock();
+ Usage   : block_object = new Bio::NEXUS::CodonsBlock($block_type, $commands, $verbose);
  Function: Creates a new Bio::NEXUS::CodonsBlock object 
  Returns : Bio::NEXUS::CodonsBlock object
- Args    : 
+ Args    : type (string), the commands/comments to parse (array ref), and a verbose flag (0 or 1; optional)
 
 =cut
 
 sub new {
-    my ($class) = @_;
-    my $self = {};
+    my ( $class, $type, $commands, $verbose, $taxa ) = @_;
+    if ( not $type) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type 
+    };
     bless $self, $class;
+    if ( ( defined $commands ) and @$commands ) {
+    	$self->_parse_block( $commands, $verbose )
+    }
     return $self;
 }
 
@@ -82,7 +90,7 @@ sub AUTOLOAD {
     }
     else {
         Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
-        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        	'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called"
         );
     }
 }

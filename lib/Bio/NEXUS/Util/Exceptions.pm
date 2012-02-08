@@ -1,4 +1,10 @@
-# $Id: Exceptions.pm,v 1.3 2008/05/03 01:11:02 rvos Exp $
+######################################################
+# Exceptions.pm - Exception classes for Bio::NEXUS.
+######################################################
+# original version thanks to Rutger
+#
+# $Id: Exceptions.pm,v 1.5 2012/02/07 21:49:27 astoltzfus Exp $
+#
 package Bio::NEXUS::Util::StackTrace;
 use strict;
 
@@ -128,8 +134,16 @@ sub throw ($$) {
 	elsif ( scalar @_ == 2 ) {
 		my $type = shift;
 		my $class = __PACKAGE__ . '::' . $type;
-		my $self = $class->new( 'error' => shift );
-		die $self;
+		my $self;
+		eval {
+			$self = $class->new( 'error' => shift );
+		};
+		if ( $@ ) {
+			die Bio::NEXUS::Util::Exceptions::API->new( 'error' => "Can't throw errors of type $type: $@" );
+		}
+		else {
+			die $self;
+		}
 	}
 }
 
@@ -307,6 +321,10 @@ This package defines the exceptions that can be thrown by Bio::NEXUS. There are
 no serviceable parts inside. Refer to the L<Exception::Class>
 perldoc for more examples on how to catch exceptions and show traces.
 
+=head1 AUTHORS
+
+Original conception by Rutger Vos. 
+
 =head1 EXCEPTION CLASSES
 
 =over
@@ -430,7 +448,7 @@ Serializes exception.
 
 =head1 REVISION
 
- $Id: Exceptions.pm,v 1.3 2008/05/03 01:11:02 rvos Exp $
+ $Id: Exceptions.pm,v 1.5 2012/02/07 21:49:27 astoltzfus Exp $
 
 =cut
 

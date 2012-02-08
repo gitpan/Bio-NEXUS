@@ -1,31 +1,34 @@
-README file for the NEXPL library with accompanying tools.
-$Id: README,v 1.13 2007/04/02 20:22:30 mike Exp $
+###########################################################################
+#
+# README file for NEXPL package include Bio::NEXUS library and tools.
+#
+# $Id: README,v 1.14 2012/02/03 21:55:51 astoltzfus Exp $
+#
+###########################################################################
+INDEX
+     1. ABOUT
+     2. AVAILABIILITY, LICENSING, AND CITATION OF Bio::NEXUS
+     3. INSTALLATION AND TESTING
+     4. DOCUMENTATION
+     5. ACKNOWLEDGEMENTS
+     6. FEEDBACK
 
-ABOUT
 
-The Bio::NEXUS package provides an object-oriented, Perl-based
-applications programming interface (API) to the NEXUS file format of
-Maddison, et al., 1997 (Syst. Biol. 46:590-621).  NEXUS is a powerful
-and extensible format designed for use in evolutionary analysis,
-including the analysis of molecular sequence data as well as classical
-morphological and life-history data. NEXUS is the input or output format
-for software such as PAUP*, MacClade, Mesquite, SIMMAP, MrBayes,
-Nexplorer, and so on.  This package also contains the demonstration
-applications nexplot.pl (plot character data with a tree) and nextool.pl
-(allowing programmatic editing, e.g., selecting particular clades or
-subsets of data).  
+1. ABOUT
 
-LICENSE & ACKNOWLEDGEMENTS
+Bio::NEXUS is an object-oriented Perl API (applications programming interface) to the NEXUS file format of Maddison, et al., 1997 (Syst. Biol. 46:590-621).  NEXUS is a powerful and extensible format designed for use in evolutionary analysis, including the analysis of molecular sequence data as well as classical morphological and life-history data. NEXUS is the input or output format for PAUP*, MacClade, Mesquite, SIMMAP, MrBayes, Nexplorer, and other end-user apps, and is the input for the TreeBASE repository.
 
-The Bio::NEXUS library of Perl software (copyright 2004 Liang, Qiu and
-Yang) is distributed under an open source license (see LICENSE). If you
-use this software, please acknowledge:
+The Bio::NEXUS package also contains the demonstration applications nexplot.pl (plot character data with a tree) and nextool.pl (allowing programmatic editing, e.g., selecting particular clades or subsets of data).  Run nexplot.pl or nextool.pl with the --help option to see the many options provided by these useful tools. 
 
-Bio::NEXUS.  An Object-oriented NEXUS API in Perl.  T.J. Hladish, C.L.
-Liang, W.-G. Qiu, P. Yang, V. Gopalan and A. Stoltzfus. Available from 
-http://www.cpan.org.
 
-INSTALLATION AND TESTING
+2. AVAILABIILITY, LICENSING, AND CITATION OF Bio::NEXUS
+
+Bio::NEXUS is an open-source project (see included LICENSE file) on SourceForge and is available from CPAN.  If you use this software, please acknowledge the following open-access publication:
+
+Hladish T, Gopalan V, Liang C, Qiu W, Yang P, Stoltzfus A: Bio::NEXUS: a Perl API for the NEXUS format for comparative biological data. BMC Bioinformatics 2007, 8:191-201. (http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Citation&list_uids=17559666)
+
+
+3. INSTALLATION AND TESTING
 
 Note that before installing Bio::NEXUS, you need the following
 modules installed on your system:
@@ -33,9 +36,6 @@ modules installed on your system:
 Clone::PP (1.02 or higher)
 Test::More
 Test::Deep
-
-(if you are using the CPAN tool, it should install those dependencies
-automatically, though it hasn't been tested)
 
 This software has been tested under Linux as well as Mac OS X 10.2 and higher, 
 and even a few Windows installations. The package installs using the standard 
@@ -48,7 +48,8 @@ make install
 
 For more information, or to customize, see doc/Installation.pod. 
 
-DOCUMENTATION
+
+4. DOCUMENTATION
 
 All of the modules are documented internally with POD, and the doc
 directory has Tutorial, Installation, User Manual documents.  You can
@@ -60,11 +61,18 @@ perldoc Bio::NEXUS  # installed module
 perldoc nexplot.pl # installed executable in your exec path
 perldoc doc/UserManual.pod 
 
-FEEDBACK 
+
+5. ACKNOWLEDGEMENTS
+
+We thank the original development team of Tom Hladish, Vivek Gopalan, Weigang Qiu, Chengzhi Liang, Peter Yang and Arlin Stoltzfus.  Contributing authors also include Eugene Melamud, Rutger Vos, Mikhail Bezruchko, and Brendan O'Brien. 
+
+This work has been supported by the Computational Biology Program of the National Library of Medicine (NIH grant R01-LM07218 to A.S), the Biological Sciences Department of Hunter College, the Howard Hughes Medical Institute Undergraduate Science Education Program in Biology, and a Research Centers in Minority Institutions award (NIH RR03037 to W.Q.).
+
+
+
+6. FEEDBACK 
 
 We welcome feedback from end-users and developers.  Please write to 
-Arlin Stoltzfus by email at <myfirstname>.<mylastname><at>nist.gov. 
-
-
+Arlin Stoltzfus by email at <myfirstname><at>umd.edu.  You also can submit a bug report or feature request via CPAN or SourceForge. 
 
 

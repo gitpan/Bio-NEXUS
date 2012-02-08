@@ -1,21 +1,17 @@
+Here is a list of miscellaneous items (below this are more specific requests):
+* implement CODONS block more fully (currently just a skeleton)
+* implement NOTES block more fully (currently just a skeleton)
+* implement more of the commands described in Maddison, et al (only about 2/3 currently)
+* move some of the redundant code in block modules up to the Block.pm class
+* test and improve compatibility with Mesquite files
+* test and improve compatibility with MrBayes files
+* test and improve compatibility with PAUP* files 
+* test and improve compatibility with BEAST files  
+
+
+
 ----------------------------------- TO DO --------------------------------------
 
-ID: 0001
-Title: test example code in documentation
-Date: 08/30/2006
-Submitted by: Tom
-Importance (5 = critical, 1 = maybe tomorrow): 4
-Status (open/done): open
-CrossRef: none
-
-Description:
-All of the examples we're releasing to the public should be tested at least
-once.  There's nothing more disconcerting then typing an example verbatim and 
-finding that it doesn't work.
-
------------------------------------- TO DO --------------------------------------
-
-ID: 0002
 Title: 
 Date: 
 Submitted by: 
@@ -28,7 +24,6 @@ Description:
 
 --------------------------------- TO DO --------------------------------------
 
-ID: 0003
 Title: Integrating nextool and nexplot  in Bio::NEXUS module
 Date: 08/31/2006
 Submitted by: Vivek Gopalan

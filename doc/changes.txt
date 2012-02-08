@@ -2,16 +2,44 @@
 
 =head1 NAME
 
-Changes.txt : Contains the changes and updates made to the NEXPL library 
+Changes.txt : Change list for NEXPL package (Bio::NEXUS library and tools) 
 
 =head1 Description
 
-This file contains the changes and updates made to the files in the NEXPL library
+This file contains the changes and updates made to the files in the NEXPL package
 
 
 =head1 Details
 
 The following section contains the changes made - with recent changes in the top.
+
+=head2  Release 0.77 (February, 2012, Arlin)
+
+=over
+
+=item 10.  Maintenance; minor changes in response to bugs 
+
+ Affected files:
+     - in nextool.pl, more robust processing of name-translation file 
+     - in several block parsers, fixed exception-handling for unknown commands
+     - other minor changes not recorded here (see cvs logs for files)
+
+=back
+
+=head2 Releases 0.74, 0.75 and 0.76 (September 2010, Arlin)
+
+=over
+
+=item 9.  Numerous changes in response to bugs, test errors, and test warnings.
+
+ Affected files:
+     - in t/nexus_add-otu-clone.t, fixed dependence on Test::Deeply
+     - in Util/Logger.pm, fixed incipient bug with UNIVERSAL::isa as function 
+     - in t/*.t, removed "use lib" directives (not good practice)
+     - in exec/tree2nex.pl fixed syntax error in output file 
+     - other changes not recorded here (see cvs logs for files)
+
+=back
 
 =head2 1st August 2006, Vivek Gopalan (gopalan@umbi.umd.edu)
 

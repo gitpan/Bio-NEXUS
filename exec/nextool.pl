@@ -2,8 +2,10 @@
 ######################################################
 # nextool.pl
 ######################################################
-# Author: liangc, yangp 
-# $Id: nextool.pl,v 1.40 2006/09/05 16:50:13 vivek Exp $
+# 
+# Thanks to Peter Yang and Chengzhi Liang for the original version 
+#
+# $Id: nextool.pl,v 1.42 2012/02/07 21:49:27 astoltzfus Exp $
 
 # this script provides a set of functions for manipulating NEXUS files
 # eg, select/exclude/rename OTUs, select character columns in OTUs
@@ -15,12 +17,13 @@ use Carp;
 use Data::Dumper;
 $Data::Dumper::Maxdepth=3;
 use Bio::NEXUS;
+use Bio::NEXUS::Functions; 
 
 my $infile = shift @ARGV;
 unless ($infile) {die "Usage: nextool.pl <infile> [outfile] [command [options]]\n";}
 
 if ($infile eq "-v") {
-    die "nextool.pl \$Revision: 1.40 $\n"; 
+    die "nextool.pl \$Revision: 1.42 $\n"; 
 }
 if ($infile eq "-h" || $infile eq '--help') {
     pod2usage(-exitval => 0, -verbose => 1);
@@ -98,14 +101,19 @@ exit;
 
 ######### SUBROUTINES #########################
 
-
 # rename OTUs
+# 
 sub rename_otus {
     my ($nexus, $transfile) = @_;
     open(FILE, "<$transfile") or die "ERROR: Can\'t open $transfile\n";
-    my @lines = <FILE>;
-    my $lines = "@lines";
-    my %translation = (split(/\s+/, $lines));
+    my $lines; 
+    while ( $_ = <FILE> ) {
+    	s/^#.*$//;
+    	next if /^\s*$/;
+    	$lines .= $_; 
+    }
+	close( FILE ); 
+    my %translation = @{ &_parse_nexus_words( $lines ) }; 
     return $nexus->rename_otus(\%translation);
 }
 
@@ -721,7 +729,7 @@ format of the file.  this is the default program action if <outfile> is not spec
 
 =head2 rename_otus <translation_file>
 
-Renames OTUs in taxa, characters and trees blocks according to translation_file. Each line of translation_file contains the old name, separated by whitespace, then the new name.
+Renames OTUs (some or all) in taxa, characters and trees blocks according to translation_file. Each non-blank, non-comment (#) line of translation_file must contain oldname whitespace newname.  
 
 =head2 reroot <outgroup_node_name> [tree_name]
 
@@ -817,7 +825,7 @@ B<This program> provides several services in the manipulation of NEXUS files (se
 
 =head1 VERSION
 
-$Revision: 1.40 $
+$Revision: 1.42 $
 
 =head1 REQUIRES
 

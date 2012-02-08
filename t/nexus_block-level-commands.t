@@ -1,14 +1,12 @@
 #!/usr/bin/env perl
 
 ######################################################
-# Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: nexus_block-level-commands.t,v 1.9 2010/09/22 19:59:00 astoltzfus Exp $
-# $Revision: 1.9 $
-
-
-# Written by Mikhail Bezruchko, Gopalan Vivek (gopalan@umbi.umd.edu)
+# 
+# Thanks to Mikhail and Vivek for the original version, 2006
+#
+# $Id: nexus_block-level-commands.t,v 1.10 2012/02/07 21:49:27 astoltzfus Exp $
+#
 # Reference : http://www.perl.com/pub/a/2004/05/07/testing.html?page=2
-# Date: 28 November, 2006
 
 use strict;
 use warnings;

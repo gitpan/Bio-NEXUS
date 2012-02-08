@@ -1,5 +1,5 @@
 README_admin -- how to make NEXPL package and update web site
-$Id: README_admin,v 1.5 2010/08/19 20:01:19 astoltzfus Exp $
+$Id: README_admin,v 1.6 2012/02/07 21:49:27 astoltzfus Exp $
 
 
 PACKAGE
@@ -38,6 +38,7 @@ make dist
 
 6.   upload the package on CPAN. 
 
+https://pause.perl.org/pause/
 
 SOURCES
 

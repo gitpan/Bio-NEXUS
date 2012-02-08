@@ -1,8 +1,9 @@
 #################################################################
-# Functions.pm
+# Functions.pm - internal functions for reading, parsing, arrays
 #################################################################
-# Author: Thomas Hladish
-# $Id: Functions.pm,v 1.15 2007/09/21 23:09:09 rvos Exp $
+# Original version thanks to Tom Hladish
+#
+# $Id: Functions.pm,v 1.16 2012/02/07 21:49:27 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -24,11 +25,11 @@ All feedback (bugs, feature enhancements, etc.) is greatly appreciated.
 
 =head1 AUTHORS
 
- Thomas Hladish (tjhladish at yahoo)
+ Original version by Thomas Hladish (tjhladish at yahoo)
 
 =head1 VERSION
 
-$Revision: 1.15 $
+$Revision: 1.16 $
 
 =head1 METHODS
 
@@ -104,7 +105,7 @@ sub _slurp {
 sub _parse_nexus_words {
     my $buffer = shift;
     if ( not defined $buffer ) {
-	    Bio::Phylo::Util::Exceptions::BadArgs->throw(
+	    Bio::NEXUS::Util::Exceptions::BadArgs->throw(
     		'error' => '_parse_nexus_words() requires a text string argument (the text to be parsed)'
     	);
     }
@@ -143,8 +144,10 @@ sub _parse_nexus_words {
                     # otherwise, close off the quoted string
                     $in_quotes--;
 
-                    # Replace spaces with underscores
-                    # (according to NEXUS, they're equivalent)
+                    # Replace spaces with underscores (according to NEXUS, they're equivalent)
+                    # 
+                    # This may not be correct.  Certainly TreeBASE doesn't like it
+                    # when we use both quoted strings and underscores in them
                     $word =~ s/ /_/g;
 
                     # Push it onto the word list, after

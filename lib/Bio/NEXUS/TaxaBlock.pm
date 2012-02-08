@@ -1,8 +1,8 @@
 ######################################################
 # TaxaBlock.pm
 ######################################################
-# Author: Chengzhi Liang,  Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: TaxaBlock.pm,v 1.43 2007/09/24 04:52:14 rvos Exp $
+# original version thanks to Chengzhi, Weigang, Eugene, Peter and Tom
+# $Id: TaxaBlock.pm,v 1.45 2012/02/07 21:38:09 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -24,17 +24,9 @@ If a NEXUS block is a taxa block, this module parses the block and stores the ta
 
 All feedback (bugs, feature enhancements, etc.) are greatly appreciated. 
 
-=head1 AUTHORS
-
- Chengzhi Liang (liangc@umbi.umd.edu)
- Weigang Qiu (weigang@genectr.hunter.cuny.edu)
- Eugene Melamud (melamud@carb.nist.gov)
- Peter Yang (pyang@rice.edu)
- Thomas Hladish (tjhladish at yahoo)
-
 =head1 VERSION
 
-$Revision: 1.43 $
+ $Id: TaxaBlock.pm,v 1.45 2012/02/07 21:38:09 astoltzfus Exp $
 
 =head1 METHODS
 
@@ -43,8 +35,6 @@ $Revision: 1.43 $
 package Bio::NEXUS::TaxaBlock;
 
 use strict;
-#use Carp;# XXX this is not used, might as well not import it!
-#use Data::Dumper; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Node;
 use Bio::NEXUS::Block;
@@ -236,8 +226,10 @@ sub AUTOLOAD {
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-    	throw 'UnkownMethod' => "Unknown method $AUTOLOAD called";
-    }
+        Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
+    		'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called"
+		);
+	}
 }
 
 1;

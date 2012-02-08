@@ -1,8 +1,10 @@
 #################################################################
 # NotesBlock.pm
 #################################################################
-# Author: Thomas Hladish
-# $Id: NotesBlock.pm,v 1.12 2007/09/21 23:09:09 rvos Exp $
+# 
+# thanks to Tom Hladish for the original version 
+#
+# $Id: NotesBlock.pm,v 1.13 2012/02/07 21:38:09 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -22,13 +24,9 @@ Placeholding module for the Notes Block class.
 
 All feedback (bugs, feature enhancements, etc.) are greatly appreciated. 
 
-=head1 AUTHORS
-
- Thomas Hladish (tjhladish at yahoo)
-
 =head1 VERSION
 
-$Revision: 1.12 $
+$Revision: 1.13 $
 
 =head1 METHODS
 
@@ -37,8 +35,6 @@ $Revision: 1.12 $
 package Bio::NEXUS::NotesBlock;
 
 use strict;
-#use Data::Dumper; # XXX this is not used, might as well not import it!
-#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
 use Bio::NEXUS::Util::Exceptions;
@@ -48,6 +44,31 @@ use Bio::NEXUS; $VERSION = $Bio::NEXUS::VERSION;
 
 @ISA = qw(Bio::NEXUS::Block);
 my $logger = Bio::NEXUS::Util::Logger->new();
+
+=head2 new
+
+ Title   : new
+ Usage   : block_object = new Bio::NEXUS::NotesBlock($block_type, $commands, $verbose);
+ Function: Creates a new Bio::NEXUS::NotesBlock object 
+ Returns : Bio::NEXUS::NotesBlock object
+ Args    : type (string), the commands/comments to parse (array ref), and a verbose flag (0 or 1; optional)
+
+=cut
+
+sub new {
+    my ( $class, $type, $commands, $verbose ) = @_;
+    if ( not $type ) { 
+    	( $type = lc $class ) =~ s/Bio::NEXUS::(.+)Block/$1/i; 
+    }
+    my $self = { 
+    	'type' => $type, 
+    };
+    bless $self, $class;
+    if ( defined $commands and @$commands ) {
+    	$self->_parse_block( $commands, $verbose );
+    }
+    return $self;
+}
 
 sub AUTOLOAD {
     return if $AUTOLOAD =~ /DESTROY$/;
@@ -66,7 +87,7 @@ sub AUTOLOAD {
     }
     else {
         Bio::NEXUS::Util::Exceptions::UnknownMethod->throw(
-        	'error' => "ERROR: Unknown method $AUTOLOAD called"
+        	'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called"
         );
     }
     return;

@@ -2,7 +2,7 @@
 # AssumptionsBlock.pm
 ######################################################
 # Author: Chengzhi Liang, Weigang Qiu, Eugene Melamud, Peter Yang, Thomas Hladish
-# $Id: AssumptionsBlock.pm,v 1.50 2007/09/24 04:52:12 rvos Exp $
+# $Id: AssumptionsBlock.pm,v 1.51 2012/02/07 21:38:09 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##################
 
@@ -34,7 +34,7 @@ All feedback (bugs, feature enhancements, etc.) are greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.50 $
+$Revision: 1.51 $
 
 =head1 METHODS
 
@@ -43,7 +43,6 @@ $Revision: 1.50 $
 package Bio::NEXUS::AssumptionsBlock;
 
 use strict;
-#use Carp; # XXX this is not used, might as well not import it!
 use Bio::NEXUS::Functions;
 use Bio::NEXUS::Block;
 use Bio::NEXUS::WeightSet;
@@ -515,7 +514,7 @@ sub AUTOLOAD {
         goto &{ $synonym_for{$AUTOLOAD} };
     }
     else {
-    	throw 'UnkownMethod' => "ERROR: Unknown method $AUTOLOAD called";
+    	throw 'UnknownMethod' => "ERROR: Unknown method $AUTOLOAD called";
     }
     return;
 }
