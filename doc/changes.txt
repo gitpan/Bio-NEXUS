@@ -13,7 +13,7 @@ This file contains the changes and updates made to the files in the NEXPL packag
 
 The following section contains the changes made - with recent changes in the top.
 
-=head2  Release 0.77 (February, 2012, Arlin)
+=head2  Release 0.77, 0.78 (February, 2012, Arlin)
 
 =over
 

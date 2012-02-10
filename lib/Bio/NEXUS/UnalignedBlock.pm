@@ -1,8 +1,10 @@
 #######################################################################
 # UnalignedBlock.pm
 #######################################################################
-# Author: Thomas Hladish
-# $Id: UnalignedBlock.pm,v 1.24 2007/09/24 04:52:14 rvos Exp $
+# 
+# thanks to Tom Hladish for the original version 
+#
+# $Id: UnalignedBlock.pm,v 1.25 2012/02/10 13:28:28 astoltzfus Exp $
 
 #################### START POD DOCUMENTATION ##########################
 
@@ -30,7 +32,7 @@ All feedback (bugs, feature enhancements, etc.) is greatly appreciated.
 
 =head1 VERSION
 
-$Revision: 1.24 $
+$Id: UnalignedBlock.pm,v 1.25 2012/02/10 13:28:28 astoltzfus Exp $
 
 =head1 METHODS
 

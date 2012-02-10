@@ -7,7 +7,7 @@ Here is a list of miscellaneous items (below this are more specific requests):
 * test and improve compatibility with MrBayes files
 * test and improve compatibility with PAUP* files 
 * test and improve compatibility with BEAST files  
-
+* improve utility script for Newick-to-NEXUS conversion (see below)
 
 
 ----------------------------------- TO DO --------------------------------------
@@ -21,6 +21,43 @@ CrossRef:
 
 Description:
 
+
+
+----------------------------------- TO DO --------------------------------------
+
+Title: improve tree2nex.pl 
+Date: 8 Feb 2012
+Submitted by: arlin
+Importance (5 = critical, 1 = maybe tomorrow):  2
+Status (open/done): 
+CrossRef: 
+
+Description:
+
+Converting a tree from Newick (aka New Hampshire, Phylip, DND) into NEXUS is a useful operation.  We have 2 scripts that do this: 
+
+exec/newtonexus.pl 
+exec/tree2nex.pl
+
+but neither one is very well implemented.  The second one has a reasonable interface and behavior, but does not use Bio::NEXUS, and does not produce a TAXA block.  It just produces a TREES block that the user can paste into another file.  The first one uses Bio::NEXUS but it is a weak implementation of the idea.  
+
+Implementing and testing basic functionality would be a 2-hour job for someone with skills.  More advanced functionality would take more time.  It should be tested with input files collected from the wild.  Here is a list of desirable capacities. 
+
+Basic functionality: 
+* ingest and process any valid Newick, Phylip, DND tree without error
+* write out a NEXUS file with a TAXA and TREES block 
+* explain the operation fully, with limitations, in the POD
+
+More advanced functionality
+* pipe-ready interface (reads STDIN, writes STDOUT)
+* ability to name tree
+* capacity for NHX trees with option to strip comments
+* capacity to ingest trees with common format errors (e.g., mrbayes)
+
+Possibly unnecessary functionality? 
+* write out Newick (e.g., when user just wants to fix errors, remove nhx)
+* process multiple trees in file, with option to split (to multiple files)
+* rename OTUs with safe (i.e., compatible with other parsers) names, output name-mapping file
 
 --------------------------------- TO DO --------------------------------------
 

@@ -2,8 +2,8 @@
 # NEXUS.pm
 ######################################################
 #
-# $Id: NEXUS.pm,v 1.121 2012/02/08 15:14:34 astoltzfus Exp $
-# $Revision: 1.121 $
+# $Id: NEXUS.pm,v 1.122 2012/02/10 13:28:28 astoltzfus Exp $
+# $Revision: 1.122 $
 #
 #################### START POD DOCUMENTATION ##################
 
@@ -73,7 +73,7 @@ use Bio::NEXUS::Util::Exceptions 'throw';
 # ExtUtils::MakeMaker reads package global $VERSION
 
 use vars qw($VERSION $AUTOLOAD);
-$VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.77' : sprintf " %d." . "%02d" x $#r, @r; };
+$VERSION = do { my @r = ( q$Name:  $ =~ /\d+/g ); ( $#r < 0 ) ? '0.78' : sprintf " %d." . "%02d" x $#r, @r; };
 
 # a logger is an object that conditionally prints messages,
 # so we don't need to add print statements and then comment

@@ -1,14 +1,11 @@
 #!/usr/bin/perl -w
 
 ######################################################
-# Author: Chengzhi Liang, Weigang Qiu, Peter Yang, Thomas Hladish, Brendan
-# $Id: _perl_podcoverage.t,v 1.5 2007/09/21 07:30:27 rvos Exp $
-# $Revision: 1.5 $
-
-
-# Written by Gopalan Vivek (gopalan@umbi.umd.edu)
-# Refernce : http://www.perl.com/pub/a/2004/05/07/testing.html?page=2
-# Date : 28th July 2006
+#
+# thanks to Vivek Gopalan for the original version 
+# 
+# $Id: _perl_podcoverage.t,v 1.6 2012/02/10 13:28:28 astoltzfus Exp $
+#
 
 use strict;
 use warnings;
